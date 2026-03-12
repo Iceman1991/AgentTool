@@ -135,7 +135,7 @@ export function AppShell() {
   const { mobileSidebarOpen, closeMobileSidebar } = useUIStore();
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#0d0d12' }}>
+    <div className="flex h-screen overflow-hidden bg-gray-950">
       {/* Mobile sidebar backdrop */}
       {mobileSidebarOpen && (
         <div

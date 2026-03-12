@@ -108,6 +108,14 @@ html.light {
 
   html.light .border-gray-600 { border-color: rgba(0,0,0,0.15) !important; }
 
+  /* Hover variant overrides for light mode */
+  html.light .hover\:bg-gray-700:hover { background-color: #E8E0D0 !important; }
+  html.light .hover\:bg-gray-800:hover { background-color: #DDD6C8 !important; }
+  html.light .hover\:bg-gray-800\/60:hover { background-color: rgba(213,205,192,0.6) !important; }
+  html.light .hover\:text-gray-200:hover { color: #1A1410 !important; }
+  html.light .hover\:text-gray-300:hover { color: #2A2018 !important; }
+  html.light .hover\:text-gray-400:hover { color: #3A2E20 !important; }
+
   /* Prose styles for rich text */
   .prose.prose-invert {
     --tw-prose-body: #c4c0b4;

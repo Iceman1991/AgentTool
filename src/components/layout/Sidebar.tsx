@@ -371,7 +371,7 @@ export function Sidebar() {
                 key={et.id}
                 to={`/type/${et.slug}`}
                 className={({ isActive }) => cn(
-                  'flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors',
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                   isActive
                     ? 'bg-gray-800/80 text-gray-100'
                     : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200',

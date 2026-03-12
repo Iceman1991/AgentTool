@@ -53,8 +53,7 @@ function BlockView({ block }: { block: PageBlock }) {
           <img
             src={block.content}
             alt="Zeichnung"
-            className="w-full object-contain max-h-[600px]"
-            style={{ backgroundColor: '#0d0d12' }}
+            className="w-full object-contain max-h-[600px] bg-gray-950"
           />
         </div>
       ) : null;
