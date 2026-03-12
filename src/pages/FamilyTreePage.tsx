@@ -152,7 +152,7 @@ export function FamilyTreePage() {
           className="text-sm text-gray-500 bg-transparent outline-none border-none min-w-0 w-48 hidden sm:block"
           placeholder="Beschreibung..."
         />
-        <div className="w-56">
+        <div className="w-full sm:w-56">
           <Select
             value={rootEntityId}
             onChange={e => handleRootEntityChange(e.target.value)}

@@ -92,7 +92,7 @@ function FolderSection({
                 if (e.key === 'Escape') setEditing(false);
               }}
               onClick={e => e.stopPropagation()}
-              className="bg-gray-800 border border-accent-500 rounded px-1.5 py-0.5 text-sm text-gray-100 focus:outline-none w-40"
+              className="bg-gray-800 border border-accent-500 rounded px-1.5 py-0.5 text-sm text-gray-100 focus:outline-none w-32 sm:w-40"
             />
           ) : (
             <span className="truncate">{title}</span>
@@ -488,8 +488,8 @@ export function EntityTypePage() {
             activeTab={entityViewMode}
             onChange={id => setEntityViewMode(id as EntityViewMode)}
           />
-          <Button variant="ghost" size="sm" onClick={() => navigate('/graph')}>
-            <Network size={14} /> Graph
+          <Button variant="ghost" size="sm" onClick={() => navigate('/graph')} title="Graph">
+            <Network size={14} /> <span className="hidden sm:inline">Graph</span>
           </Button>
           <Button
             variant="ghost"
@@ -497,10 +497,10 @@ export function EntityTypePage() {
             onClick={() => setAddingFolder(true)}
             title="Neuer Ordner"
           >
-            <FolderPlus size={14} /> Ordner
+            <FolderPlus size={14} /> <span className="hidden sm:inline">Ordner</span>
           </Button>
           <Button variant="primary" onClick={handleCreateEntity}>
-            <Plus size={16} /> Neuer {entityType.name}
+            <Plus size={16} /> <span className="hidden xs:inline">Neuer </span>{entityType.name}
           </Button>
         </div>
       </div>
@@ -518,7 +518,7 @@ export function EntityTypePage() {
               if (e.key === 'Escape') { setAddingFolder(false); setNewFolderName(''); }
             }}
             placeholder="Ordnername..."
-            className="bg-gray-800 border border-accent-500 rounded-md px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-accent-500 w-56"
+            className="bg-gray-800 border border-accent-500 rounded-md px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-accent-500 w-full sm:w-56"
           />
           <button
             className="p-1.5 rounded hover:bg-gray-700 text-green-400"

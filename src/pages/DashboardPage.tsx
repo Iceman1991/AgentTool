@@ -84,7 +84,7 @@ export function DashboardPage() {
   const maxCount = Math.max(...typeStats.map(x => x.count), 1);
 
   return (
-    <div style={{ padding: 'clamp(16px, 4vw, 32px)', maxWidth: '1100px', width: '100%', display: 'flex', flexDirection: 'column', gap: 'clamp(20px, 3vw, 32px)' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 32px)', maxWidth: '1100px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'clamp(20px, 3vw, 32px)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>

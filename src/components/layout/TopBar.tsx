@@ -124,7 +124,7 @@ function ProfileButton() {
       {open && (
         <div style={{
           position: 'absolute', top: '40px', right: 0, zIndex: 100,
-          width: '300px', backgroundColor: '#141419',
+          width: 'min(300px, calc(100vw - 24px))', backgroundColor: '#141419',
           border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
           boxShadow: '0 20px 48px rgba(0,0,0,0.7)', overflow: 'hidden',
         }}>
