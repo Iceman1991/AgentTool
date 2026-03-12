@@ -26,6 +26,8 @@ interface MapState {
     color: string;
     type: MapPinType;
     targetId?: string;
+    icon?: string;
+    size?: string;
   }) => Promise<MapPin>;
   updatePin: (id: string, data: Partial<MapPin>) => Promise<void>;
   deletePin: (id: string) => Promise<void>;
@@ -54,6 +56,8 @@ function rowToPin(row: Record<string, unknown>): MapPin {
     color: (row.color as string) ?? '#C49A4A',
     type: (row.type as MapPinType) ?? 'custom',
     targetId: row.target_id as string | undefined,
+    icon: (row.icon as string) ?? 'map-pin',
+    size: (row.size as string) ?? 'md',
     workspaceId: row.workspace_id as string | undefined,
     createdAt: row.created_at as number,
     updatedAt: row.updated_at as number,
@@ -162,6 +166,8 @@ export const useMapStore = create<MapState>((set, get) => ({
       color: data.color,
       type: data.type,
       targetId: data.targetId,
+      icon: data.icon ?? 'map-pin',
+      size: data.size ?? 'md',
       workspaceId: wsId,
       createdAt: now,
       updatedAt: now,
@@ -178,6 +184,8 @@ export const useMapStore = create<MapState>((set, get) => ({
       color: newPin.color,
       type: newPin.type,
       target_id: newPin.targetId,
+      icon: newPin.icon,
+      size: newPin.size,
       created_at: newPin.createdAt,
       updated_at: newPin.updatedAt,
     });
@@ -195,6 +203,8 @@ export const useMapStore = create<MapState>((set, get) => ({
     if (data.targetId !== undefined) dbUpdate.target_id = data.targetId;
     if (data.x !== undefined) dbUpdate.x = data.x;
     if (data.y !== undefined) dbUpdate.y = data.y;
+    if (data.icon !== undefined) dbUpdate.icon = data.icon;
+    if (data.size !== undefined) dbUpdate.size = data.size;
     await supabase.from('map_pins').update(dbUpdate).eq('id', id);
     set(state => ({
       pins: state.pins.map(p =>

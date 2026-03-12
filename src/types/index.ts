@@ -194,6 +194,8 @@ export interface MapPin {
   color: string;
   type: MapPinType;
   targetId?: string;  // entityId, mapId, or notePageId
+  icon?: string;      // lucide icon name, default 'map-pin'
+  size?: string;      // 'sm' | 'md' | 'lg' | 'xl', default 'md'
   workspaceId?: string;
   createdAt: number;
   updatedAt: number;

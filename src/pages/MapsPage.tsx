@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Eye, MapPin as MapPinIcon, ChevronLeft, ChevronRight, Trash2, Check, Navigation } from 'lucide-react';
+import { Plus, X, ZoomIn, ZoomOut, RotateCcw, Pencil, Eye, MapPin as MapPinIcon, ChevronLeft, ChevronRight, Trash2, Check, Navigation, Star, Skull, Home, Flag, Zap, Flame, Crown, Gem, Shield, Swords, Tent, Mountain, Anchor, AlertTriangle, type LucideIcon } from 'lucide-react';
 import { useMapStore } from '../stores/mapStore';
 import { useEntityStore } from '../stores/entityStore';
 import { useNotePageStore } from '../stores/notePageStore';
@@ -12,6 +12,27 @@ import type { CampaignMap, MapPin, MapPinType } from '../types';
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 8;
 const PIN_COLORS = ['#C49A4A', '#E05252', '#52A8E0', '#52C07A', '#9B52E0', '#E07A52'];
+
+const PIN_ICONS: Record<string, LucideIcon> = {
+  'map-pin': MapPinIcon,
+  'star': Star,
+  'skull': Skull,
+  'home': Home,
+  'flag': Flag,
+  'zap': Zap,
+  'flame': Flame,
+  'crown': Crown,
+  'gem': Gem,
+  'shield': Shield,
+  'swords': Swords,
+  'tent': Tent,
+  'mountain': Mountain,
+  'anchor': Anchor,
+  'alert-triangle': AlertTriangle,
+};
+
+const PIN_SIZES: Record<string, number> = { sm: 10, md: 14, lg: 20, xl: 28 };
+const PIN_SIZE_LABELS: Record<string, string> = { sm: 'S', md: 'M', lg: 'L', xl: 'XL' };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -27,6 +48,8 @@ interface PinFormData {
   color: string;
   type: MapPinType;
   targetId: string;
+  icon: string;
+  size: string;
 }
 
 interface PendingPin {
@@ -51,6 +74,8 @@ function PinForm({ initial, onSave, onCancel, maps, currentMapId }: PinFormProps
   const [label, setLabel] = useState(initial?.label ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [color, setColor] = useState(initial?.color ?? PIN_COLORS[0]);
+  const [icon, setIcon] = useState(initial?.icon ?? 'map-pin');
+  const [size, setSize] = useState(initial?.size ?? 'md');
   const [type, setType] = useState<MapPinType>(initial?.type ?? 'custom');
   const [targetId, setTargetId] = useState(initial?.targetId ?? '');
 
@@ -217,6 +242,60 @@ function PinForm({ initial, onSave, onCancel, maps, currentMapId }: PinFormProps
         </div>
       </div>
 
+      {/* Icon */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <label style={{ color: '#8A8070', fontSize: 12 }}>Icon</label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {Object.entries(PIN_ICONS).map(([key, IconComp]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setIcon(key)}
+              title={key}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 7,
+                border: icon === key ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.07)',
+                background: icon === key ? `${color}22` : 'rgba(255,255,255,0.03)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              <IconComp size={14} color={icon === key ? color : '#8A8070'} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Size */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <label style={{ color: '#8A8070', fontSize: 12 }}>Größe</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {Object.entries(PIN_SIZE_LABELS).map(([key, label_]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSize(key)}
+              style={{
+                padding: '3px 10px',
+                borderRadius: 6,
+                fontSize: 12,
+                cursor: 'pointer',
+                border: size === key ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.07)',
+                background: size === key ? `${color}22` : 'rgba(255,255,255,0.03)',
+                color: size === key ? color : '#8A8070',
+              }}
+            >
+              {label_}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
         <button
@@ -236,7 +315,7 @@ function PinForm({ initial, onSave, onCancel, maps, currentMapId }: PinFormProps
         </button>
         <button
           type="button"
-          onClick={() => onSave({ label: label.trim() || 'Pin', description, color, type, targetId })}
+          onClick={() => onSave({ label: label.trim() || 'Pin', description, color, type, targetId, icon, size })}
           style={{
             padding: '6px 14px',
             borderRadius: 8,
@@ -386,6 +465,7 @@ function MapViewer({ map, pins, editMode, onAddPin, onDeletePin, onEditPin, onNa
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
   const panOffsetStart = useRef({ x: 0, y: 0 });
+  const wasDrag = useRef(false);
 
   // Touch state
   const lastTouchDist = useRef<number | null>(null);
@@ -471,6 +551,7 @@ function MapViewer({ map, pins, editMode, onAddPin, onDeletePin, onEditPin, onNa
       // Don't start pan if clicking on a pin
       if ((e.target as HTMLElement).closest('[data-pin]')) return;
       isPanning.current = true;
+      wasDrag.current = false;
       panStart.current = { x: e.clientX, y: e.clientY };
       panOffsetStart.current = { ...offsetRef.current };
       el.style.cursor = 'grabbing';
@@ -479,6 +560,7 @@ function MapViewer({ map, pins, editMode, onAddPin, onDeletePin, onEditPin, onNa
       if (!isPanning.current) return;
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) wasDrag.current = true;
       offsetRef.current = {
         x: panOffsetStart.current.x + dx,
         y: panOffsetStart.current.y + dy,
@@ -587,6 +669,7 @@ function MapViewer({ map, pins, editMode, onAddPin, onDeletePin, onEditPin, onNa
   // Click on image to add pin
   const handleImageClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
     if (!editMode) return;
+    if (wasDrag.current) return;
     if ((e.target as HTMLElement).closest('[data-pin]')) return;
     const imageEl = imageRef.current;
     if (!imageEl) return;
@@ -686,18 +769,29 @@ function MapViewer({ map, pins, editMode, onAddPin, onDeletePin, onEditPin, onNa
                 }
               }}
             >
-              {/* Dot */}
-              <div style={{
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
-                background: pin.color,
-                border: '2px solid rgba(255,255,255,0.7)',
-                boxShadow: `0 0 6px ${pin.color}88, 0 2px 4px rgba(0,0,0,0.5)`,
-                transition: 'transform 0.15s',
-                transform: isHovered ? 'scale(1.3)' : 'scale(1)',
-                flexShrink: 0,
-              }} />
+              {/* Icon */}
+              {(() => {
+                const IconComp = PIN_ICONS[pin.icon ?? 'map-pin'] ?? MapPinIcon;
+                const sz = PIN_SIZES[pin.size ?? 'md'] ?? 14;
+                return (
+                  <div style={{
+                    width: sz + 10,
+                    height: sz + 10,
+                    borderRadius: '50%',
+                    background: `${pin.color}28`,
+                    border: `2px solid ${pin.color}`,
+                    boxShadow: `0 0 6px ${pin.color}66, 0 2px 4px rgba(0,0,0,0.5)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.15s',
+                    transform: isHovered ? 'scale(1.3)' : 'scale(1)',
+                    flexShrink: 0,
+                  }}>
+                    <IconComp size={sz} color={pin.color} />
+                  </div>
+                );
+              })()}
               {/* Label */}
               <div style={{
                 background: 'rgba(9,9,11,0.85)',
@@ -954,6 +1048,8 @@ export function MapsPage() {
         color: data.color,
         type: data.type,
         targetId: data.targetId || undefined,
+        icon: data.icon,
+        size: data.size,
       });
     } else if (pendingPin) {
       await createPin({
@@ -965,6 +1061,8 @@ export function MapsPage() {
         color: data.color,
         type: data.type,
         targetId: data.targetId || undefined,
+        icon: data.icon,
+        size: data.size,
       });
     }
     setPendingPin(null);
@@ -1428,6 +1526,8 @@ export function MapsPage() {
                       color: editingPin.color,
                       type: editingPin.type,
                       targetId: editingPin.targetId,
+                      icon: editingPin.icon,
+                      size: editingPin.size,
                     } : undefined}
                     onSave={handleSavePin}
                     onCancel={handleCancelPinForm}
