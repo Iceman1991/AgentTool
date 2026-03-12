@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Clock } from 'lucide-react';
 import { useTimelineMetaStore } from '../stores/timelineMetaStore';
@@ -12,8 +13,10 @@ function formatDate(ts: number): string {
 
 export function TimelinesListPage() {
   const navigate = useNavigate();
-  const { timelines, createTimeline } = useTimelineMetaStore();
+  const { timelines, createTimeline, load } = useTimelineMetaStore();
   const allEvents = useTimelineStore(s => s.events);
+
+  useEffect(() => { load(); }, [load]);
 
   const sorted = [...timelines].sort((a, b) => b.updatedAt - a.updatedAt);
 

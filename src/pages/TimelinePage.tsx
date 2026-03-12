@@ -1,19 +1,270 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Filter, SortAsc, SortDesc, Trash2, ChevronLeft, X } from 'lucide-react';
+import { Plus, Filter, SortAsc, SortDesc, Trash2, ChevronLeft, X, Pencil, Clock } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ColorPicker } from '../components/ui/ColorPicker';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { TimelineEventCard } from '../components/timeline/TimelineEvent';
 import { useTimelineStore } from '../stores/timelineStore';
 import { useTimelineMetaStore } from '../stores/timelineMetaStore';
 import { useEntityStore } from '../stores/entityStore';
 import { useUIStore } from '../stores/uiStore';
 import { NotFoundPage } from './NotFoundPage';
-import type { EventCategory } from '../types';
-import { Clock } from 'lucide-react';
+import type { EventCategory, GolarionDate } from '../types';
+import { MONTH_ORDER, formatGolarionDate, stripHtml } from '../lib/utils';
+
+// ── Visual timeline ──────────────────────────────────────────────────────────
+
+const CAT_COLORS: Record<string, string> = {
+  combat: '#DC2626', social: '#0891B2', exploration: '#059669',
+  downtime: '#D97706', revelation: '#7C3AED', death: '#4B5563',
+  milestone: '#DB2777', custom: '#6B7280',
+};
+const CAT_LABELS: Record<string, string> = {
+  combat: 'Kampf', social: 'Sozial', exploration: 'Erkundung',
+  downtime: 'Freizeit', revelation: 'Enthüllung', death: 'Tod',
+  milestone: 'Meilenstein', custom: 'Sonstiges',
+};
+
+function dateToNum(d: GolarionDate): number {
+  return d.year * 360 + (MONTH_ORDER[d.month as keyof typeof MONTH_ORDER] ?? 0) * 30 + d.day;
+}
+
+const PX_YEAR = 160;
+const VT_ABOVE = 150;
+const VT_BELOW = 150;
+const VT_STEM = 44;
+const VT_CARD_W = 152;
+const VT_CARD_H = 60;
+const VT_PAD = 60;
+
+interface VTProps {
+  events: TEvent[];
+  color: string;
+  onEdit: (e: TEvent) => void;
+  onDelete: (e: TEvent) => void;
+}
+
+function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
+  const allEntities = useEntityStore(s => s.entities);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const minYear = events.reduce((m, e) => Math.min(m, e.date.year), Infinity);
+  const maxYear = events.reduce((m, e) => Math.max(m, e.date.year), -Infinity);
+  const yearSpan = Math.max(maxYear - minYear + 1, 1);
+  const displayMin = minYear * 360;
+  const displayRange = yearSpan * 360;
+  const innerW = Math.max(500, yearSpan * PX_YEAR);
+  const totalW = innerW + VT_PAD * 2;
+  const axisY = VT_ABOVE;
+  const totalH = VT_ABOVE + VT_BELOW + 28;
+
+  const getX = (num: number) => VT_PAD + ((num - displayMin) / displayRange) * innerW;
+
+  const yearTicks = Array.from({ length: yearSpan + 1 }, (_, i) => ({
+    year: minYear + i,
+    x: getX((minYear + i) * 360),
+  }));
+
+  const activeEvent = events.find(e => e.id === activeId) ?? null;
+  const activeCatColor = activeEvent ? (CAT_COLORS[activeEvent.category] ?? color) : color;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Scrollable visual */}
+      <div style={{ overflowX: 'auto', width: '100%' }}>
+        <div style={{ position: 'relative', width: totalW, height: totalH }}>
+
+          {/* Axis line */}
+          <div style={{
+            position: 'absolute', top: axisY, left: VT_PAD - 12,
+            width: innerW + 24, height: 2,
+            background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.12) 4%, rgba(255,255,255,0.12) 96%, transparent)',
+          }} />
+          {/* Arrow head */}
+          <div style={{
+            position: 'absolute', top: axisY - 5, left: VT_PAD + innerW + 13,
+            width: 0, height: 0,
+            borderTop: '5px solid transparent', borderBottom: '5px solid transparent',
+            borderLeft: '8px solid rgba(255,255,255,0.18)',
+          }} />
+
+          {/* Year ticks + labels */}
+          {yearTicks.map(({ year, x }) => (
+            <Fragment key={year}>
+              <div style={{
+                position: 'absolute', left: x, top: axisY - 5,
+                width: 1, height: 10, background: 'rgba(255,255,255,0.14)',
+                transform: 'translateX(-50%)',
+              }} />
+              <div style={{
+                position: 'absolute', left: x, top: axisY + VT_BELOW + 4,
+                transform: 'translateX(-50%)', fontSize: 11, color: '#504840',
+                whiteSpace: 'nowrap',
+              }}>
+                {year} SR
+              </div>
+            </Fragment>
+          ))}
+
+          {/* Events */}
+          {events.map((event, i) => {
+            const x = getX(dateToNum(event.date));
+            const above = i % 2 === 0;
+            const catColor = CAT_COLORS[event.category] ?? '#6B7280';
+            const isActive = activeId === event.id;
+            const cardLeft = Math.max(2, Math.min(x - VT_CARD_W / 2, totalW - VT_CARD_W - 2));
+            const cardTop = above ? axisY - VT_STEM - VT_CARD_H : axisY + VT_STEM;
+            const stemTop = above ? axisY - VT_STEM : axisY;
+
+            return (
+              <Fragment key={event.id}>
+                {/* Stem */}
+                <div style={{
+                  position: 'absolute', left: x, top: stemTop,
+                  width: 2, height: VT_STEM,
+                  background: isActive ? catColor : `${catColor}55`,
+                  transform: 'translateX(-50%)',
+                  transition: 'background 0.15s',
+                }} />
+
+                {/* Dot */}
+                <button
+                  type="button"
+                  onClick={() => setActiveId(isActive ? null : event.id)}
+                  style={{
+                    position: 'absolute', left: x, top: axisY,
+                    transform: 'translate(-50%, -50%)',
+                    width: 14, height: 14, borderRadius: '50%',
+                    background: catColor,
+                    border: `2px solid ${isActive ? '#EDE8DC' : `${catColor}99`}`,
+                    boxShadow: isActive ? `0 0 10px ${catColor}` : `0 0 4px ${catColor}66`,
+                    cursor: 'pointer', padding: 0, zIndex: isActive ? 15 : 10,
+                    outline: 'none', transition: 'box-shadow 0.15s',
+                  }}
+                />
+
+                {/* Card */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setActiveId(isActive ? null : event.id)}
+                  onKeyDown={e => e.key === 'Enter' && setActiveId(isActive ? null : event.id)}
+                  style={{
+                    position: 'absolute', left: cardLeft, top: cardTop,
+                    width: VT_CARD_W, height: VT_CARD_H,
+                    background: isActive ? '#252530' : '#19191f',
+                    border: `1px solid ${isActive ? catColor : 'rgba(255,255,255,0.07)'}`,
+                    borderRadius: 8, padding: '7px 10px',
+                    cursor: 'pointer', zIndex: isActive ? 14 : 5,
+                    overflow: 'hidden',
+                    transition: 'background 0.15s, border-color 0.15s',
+                    outline: 'none',
+                  }}
+                >
+                  <div style={{ fontSize: 10, color: catColor, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: catColor, flexShrink: 0, display: 'inline-block' }} />
+                    {formatGolarionDate(event.date)}
+                  </div>
+                  <div style={{
+                    fontSize: 12, fontWeight: 600, color: '#EDE8DC',
+                    overflow: 'hidden', textOverflow: 'ellipsis',
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                    lineHeight: 1.4,
+                  }}>
+                    {event.title}
+                  </div>
+                </div>
+              </Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Detail panel */}
+      {activeEvent && (
+        <div style={{
+          borderRadius: 10,
+          border: `1px solid ${activeCatColor}44`,
+          borderLeft: `3px solid ${activeCatColor}`,
+          background: '#17171d',
+          padding: '14px 16px',
+          display: 'flex', flexDirection: 'column', gap: 6,
+          marginTop: 2,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: activeCatColor, marginBottom: 4, display: 'flex', flexWrap: 'wrap', gap: '3px 10px' }}>
+                <span>{formatGolarionDate(activeEvent.date)}</span>
+                <span style={{ color: '#40382E' }}>·</span>
+                <span>{CAT_LABELS[activeEvent.category]}</span>
+                {activeEvent.sessionNumber != null && (
+                  <Fragment><span style={{ color: '#40382E' }}>·</span><span>Sitzung {activeEvent.sessionNumber}</span></Fragment>
+                )}
+                {activeEvent.isSecret && (
+                  <Fragment><span style={{ color: '#40382E' }}>·</span><span>🔒 Geheim</span></Fragment>
+                )}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#EDE8DC', marginBottom: 4 }}>
+                {activeEvent.title}
+              </div>
+              {activeEvent.description && (
+                <div style={{ fontSize: 13, color: '#7A7060', lineHeight: 1.5 }}>
+                  {(() => { const t = stripHtml(activeEvent.description); return t.length > 220 ? t.slice(0, 220) + '…' : t; })()}
+                </div>
+              )}
+              {activeEvent.linkedEntityIds.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                  {activeEvent.linkedEntityIds.map(eid => {
+                    const entity = allEntities.find(e => e.id === eid);
+                    return entity ? (
+                      <span key={eid} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'rgba(255,255,255,0.05)', color: '#7A7060', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {entity.name}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {activeEvent.tags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                  {activeEvent.tags.map(t => (
+                    <span key={t} style={{ fontSize: 11, color: '#4A4438' }}>#{t}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => onEdit(activeEvent)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 7, padding: '5px 8px', color: '#7A7060', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => { onDelete(activeEvent); setActiveId(null); }}
+                style={{ background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 7, padding: '5px 8px', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <Trash2 size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveId(null)}
+                style={{ background: 'none', border: 'none', borderRadius: 7, padding: '5px 6px', color: '#4A4438', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Alle Kategorien' },
@@ -33,7 +284,7 @@ export function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getSortedEvents, deleteEvent } = useTimelineStore();
-  const { timelines, updateTimeline, deleteTimeline } = useTimelineMetaStore();
+  const { timelines, updateTimeline, deleteTimeline, load } = useTimelineMetaStore();
   const entities = useEntityStore(s => s.entities);
   const openModal = useUIStore(s => s.openModal);
 
@@ -53,6 +304,8 @@ export function TimelinePage() {
 
   const nameDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const descDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (timeline) {
@@ -339,18 +592,12 @@ export function TimelinePage() {
             onAction={() => openModal({ type: 'createEvent' })}
           />
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl">
-              {displayed.map(event => (
-                <TimelineEventCard
-                  key={event.id}
-                  event={event}
-                  onEdit={e => openModal({ type: 'editEvent', payload: { eventId: e.id } })}
-                  onDelete={e => setDeleteTarget(e)}
-                />
-              ))}
-            </div>
-          </div>
+          <HorizontalTimeline
+            events={displayed}
+            color={colorValue}
+            onEdit={e => openModal({ type: 'editEvent', payload: { eventId: e.id } })}
+            onDelete={e => setDeleteTarget(e)}
+          />
         )}
       </div>
 
