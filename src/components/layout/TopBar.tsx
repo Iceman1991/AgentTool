@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Sun, Moon, Monitor, X, Menu } from 'lucide-react';
+import { Search, Sun, Moon, Monitor, X, Menu, Check, Loader2 } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useEntityStore } from '../../stores/entityStore';
 import { useEntityTypeStore } from '../../stores/entityTypeStore';
+import { useAuthStore } from '../../stores/authStore';
 import type { Theme } from '../../types';
 import { cn } from '../../lib/utils';
 
@@ -62,6 +63,205 @@ function Breadcrumb() {
         </span>
       ))}
     </nav>
+  );
+}
+
+function ProfileButton() {
+  const { user, updateEmail, updatePassword } = useAuthStore();
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<'email' | 'password'>('email');
+  const [emailVal, setEmailVal] = useState('');
+  const [pwVal, setPwVal] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const initial = user?.email?.[0]?.toUpperCase() ?? '?';
+
+  const handleEmailSave = async () => {
+    if (!emailVal.trim()) return;
+    setLoading(true); setMsg(null);
+    const err = await updateEmail(emailVal.trim());
+    setLoading(false);
+    setMsg(err ? { text: err, ok: false } : { text: 'Bestätigungs-E-Mail gesendet. Bitte prüfe dein Postfach.', ok: true });
+    if (!err) setEmailVal('');
+  };
+
+  const handlePwSave = async () => {
+    if (!pwVal || pwVal !== pwConfirm) {
+      setMsg({ text: 'Passwörter stimmen nicht überein.', ok: false });
+      return;
+    }
+    if (pwVal.length < 6) {
+      setMsg({ text: 'Mindestens 6 Zeichen erforderlich.', ok: false });
+      return;
+    }
+    setLoading(true); setMsg(null);
+    const err = await updatePassword(pwVal);
+    setLoading(false);
+    setMsg(err ? { text: err, ok: false } : { text: 'Passwort erfolgreich geändert.', ok: true });
+    if (!err) { setPwVal(''); setPwConfirm(''); }
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => { setOpen(v => !v); setMsg(null); }}
+        title={user?.email ?? 'Profil'}
+        style={{
+          width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(196,154,74,0.2)', color: '#C49A4A',
+          fontSize: '13px', fontWeight: 700, border: 'none', cursor: 'pointer',
+          transition: 'background-color 120ms',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(196,154,74,0.35)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(196,154,74,0.2)'; }}
+      >
+        {initial}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '40px', right: 0, zIndex: 100,
+          width: '300px', backgroundColor: '#141419',
+          border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
+          boxShadow: '0 20px 48px rgba(0,0,0,0.7)', overflow: 'hidden',
+        }}>
+          {/* Header */}
+          <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'rgba(196,154,74,0.2)', color: '#C49A4A',
+                fontSize: '16px', fontWeight: 700,
+              }}>
+                {initial}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#EDE8DC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user?.email}
+                </div>
+                <div style={{ fontSize: '11px', color: '#4A4438', marginTop: '1px' }}>Angemeldet</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            {(['email', 'password'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setMsg(null); }}
+                style={{
+                  flex: 1, padding: '10px', fontSize: '12px', fontWeight: 500,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: tab === t ? '#C49A4A' : '#8A8070',
+                  borderBottom: tab === t ? '2px solid #C49A4A' : '2px solid transparent',
+                  transition: 'color 120ms',
+                }}
+              >
+                {t === 'email' ? 'E-Mail ändern' : 'Passwort ändern'}
+              </button>
+            ))}
+          </div>
+
+          {/* Form */}
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {tab === 'email' ? (
+              <>
+                <div style={{ fontSize: '11px', color: '#4A4438' }}>Aktuelle E-Mail: {user?.email}</div>
+                <input
+                  type="email"
+                  placeholder="Neue E-Mail-Adresse"
+                  value={emailVal}
+                  onChange={e => setEmailVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleEmailSave(); }}
+                  style={{
+                    background: '#1c1c23', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px', padding: '8px 12px', fontSize: '13px',
+                    color: '#EDE8DC', outline: 'none', width: '100%', boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={handleEmailSave}
+                  disabled={loading || !emailVal.trim()}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+                    backgroundColor: '#C49A4A', color: '#fff', border: 'none', cursor: 'pointer',
+                    opacity: loading || !emailVal.trim() ? 0.5 : 1, transition: 'opacity 120ms',
+                  }}
+                >
+                  {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />}
+                  Speichern
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  type="password"
+                  placeholder="Neues Passwort"
+                  value={pwVal}
+                  onChange={e => setPwVal(e.target.value)}
+                  style={{
+                    background: '#1c1c23', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px', padding: '8px 12px', fontSize: '13px',
+                    color: '#EDE8DC', outline: 'none', width: '100%', boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  type="password"
+                  placeholder="Passwort bestätigen"
+                  value={pwConfirm}
+                  onChange={e => setPwConfirm(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handlePwSave(); }}
+                  style={{
+                    background: '#1c1c23', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px', padding: '8px 12px', fontSize: '13px',
+                    color: '#EDE8DC', outline: 'none', width: '100%', boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  onClick={handlePwSave}
+                  disabled={loading || !pwVal || !pwConfirm}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+                    backgroundColor: '#C49A4A', color: '#fff', border: 'none', cursor: 'pointer',
+                    opacity: loading || !pwVal || !pwConfirm ? 0.5 : 1, transition: 'opacity 120ms',
+                  }}
+                >
+                  {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />}
+                  Speichern
+                </button>
+              </>
+            )}
+
+            {msg && (
+              <div style={{
+                fontSize: '12px', padding: '8px 10px', borderRadius: '8px',
+                backgroundColor: msg.ok ? 'rgba(125,196,123,0.1)' : 'rgba(196,74,74,0.1)',
+                color: msg.ok ? '#7DC47B' : '#E07070',
+                border: `1px solid ${msg.ok ? 'rgba(125,196,123,0.2)' : 'rgba(196,74,74,0.2)'}`,
+              }}>
+                {msg.text}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -166,6 +366,8 @@ export function TopBar() {
       >
         {THEME_ICONS[theme]}
       </button>
+
+      <ProfileButton />
     </header>
   );
 }
