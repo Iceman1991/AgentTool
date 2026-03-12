@@ -41,23 +41,24 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
         className={cn(
-          'relative rounded-2xl shadow-modal w-full border border-white/[0.1]',
+          'relative w-full border border-white/[0.1]',
+          'rounded-t-2xl sm:rounded-2xl shadow-modal',
           'bg-gray-800',
           sizeClasses[size],
-          'max-h-[90vh] flex flex-col',
+          'max-h-[92dvh] sm:max-h-[90vh] flex flex-col',
           className,
         )}
         onClick={e => e.stopPropagation()}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.07] flex-shrink-0">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.07] flex-shrink-0">
             <h2 className="text-base font-semibold text-gray-100 font-display tracking-wide">{title}</h2>
             <button
               onClick={onClose}
@@ -67,7 +68,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
             </button>
           </div>
         )}
-        <div className="overflow-y-auto flex-1 p-6">
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6">
           {children}
         </div>
       </div>

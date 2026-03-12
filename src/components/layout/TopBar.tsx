@@ -1,20 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Sun, Moon, Monitor, X, Menu, Check, Loader2 } from 'lucide-react';
+import { Search, X, Menu, Check, Loader2 } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useEntityStore } from '../../stores/entityStore';
 import { useEntityTypeStore } from '../../stores/entityTypeStore';
 import { useAuthStore } from '../../stores/authStore';
-import type { Theme } from '../../types';
 import { cn } from '../../lib/utils';
-
-const THEME_ICONS: Record<Theme, React.ReactNode> = {
-  light: <Sun size={15} />,
-  dark: <Moon size={15} />,
-  system: <Monitor size={15} />,
-};
-
-const THEME_CYCLE: Theme[] = ['dark', 'light', 'system'];
 
 function Breadcrumb() {
   const location = useLocation();
@@ -267,18 +258,12 @@ function ProfileButton() {
 
 export function TopBar() {
   const navigate = useNavigate();
-  const { theme, setTheme, toggleMobileSidebar } = useUIStore();
+  const { toggleMobileSidebar } = useUIStore();
   const entities = useEntityStore(s => s.entities);
   const entityTypes = useEntityTypeStore(s => s.entityTypes);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-
-  const cycleTheme = () => {
-    const currentIdx = THEME_CYCLE.indexOf(theme);
-    const nextTheme = THEME_CYCLE[(currentIdx + 1) % THEME_CYCLE.length];
-    setTheme(nextTheme);
-  };
 
   const searchResults = searchQuery.length > 1
     ? entities.filter(e => e.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
@@ -315,7 +300,7 @@ export function TopBar() {
             onFocus={() => setSearchOpen(true)}
             onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
             placeholder="Suchen..."
-            className="bg-transparent text-sm text-gray-200 placeholder-gray-500 outline-none w-44"
+            className="bg-transparent text-sm text-gray-200 placeholder-gray-500 outline-none w-28 sm:w-44"
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery('')} className="text-gray-500 hover:text-gray-300">
@@ -325,7 +310,7 @@ export function TopBar() {
         </div>
 
         {searchOpen && searchQuery.length > 1 && (
-          <div className="absolute right-0 top-full mt-1.5 w-80 bg-gray-800 border border-white/[0.1] rounded-xl shadow-modal z-50 overflow-hidden">
+          <div className="absolute right-0 top-full mt-1.5 w-80 max-w-[calc(100vw-2rem)] bg-gray-800 border border-white/[0.1] rounded-xl shadow-modal z-50 overflow-hidden">
             {searchResults.length > 0 ? (
               searchResults.map(entity => {
                 const et = typeMap.get(entity.typeId);
@@ -357,15 +342,6 @@ export function TopBar() {
           </div>
         )}
       </div>
-
-      {/* Theme toggle */}
-      <button
-        onClick={cycleTheme}
-        className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700/50"
-        title={`Thema: ${theme}`}
-      >
-        {THEME_ICONS[theme]}
-      </button>
 
       <ProfileButton />
     </header>

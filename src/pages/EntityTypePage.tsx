@@ -349,15 +349,10 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { ImagePositionEditor } from '../components/ui/ImagePositionEditor';
 import { useEntityStore as useEntityStoreLocal } from '../stores/entityStore';
-import { stripHtml } from '../lib/utils';
 import type { ImagePosition } from '../types';
 
 const EntityCardInner = memo(function EntityCardInner({ entity, entityType }: { entity: Entity; entityType: EntityType }) {
   const updateEntity = useEntityStoreLocal(s => s.updateEntity);
-  const summaryText = useMemo(
-    () => entity.summary ? stripHtml(entity.summary).slice(0, 100) : null,
-    [entity.summary]
-  );
 
   const handleSavePosition = useCallback((pos: ImagePosition) => {
     updateEntity(entity.id, { imagePosition: pos });
@@ -384,9 +379,6 @@ const EntityCardInner = memo(function EntityCardInner({ entity, entityType }: { 
           <h3 className="font-semibold text-gray-100 leading-snug">{entity.name}</h3>
           <Badge color={entityType.color} size="sm" className="flex-shrink-0">{entityType.name}</Badge>
         </div>
-        {summaryText && (
-          <p className="text-[13px] text-gray-400 line-clamp-2 leading-relaxed">{summaryText}</p>
-        )}
         {entity.tags.length > 0 && (
           <div className="mt-auto pt-2 flex flex-wrap gap-1.5">
             {entity.tags.slice(0, 3).map(tag => (
@@ -464,7 +456,7 @@ export function EntityTypePage() {
   const hasFolders = folders.length > 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">

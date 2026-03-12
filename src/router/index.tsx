@@ -14,6 +14,7 @@ import { NotePagesListPage } from '../pages/NotePagesListPage';
 import { NotePageDetailPage } from '../pages/NotePageDetailPage';
 import { TrashPage } from '../pages/TrashPage';
 import { AdminPage } from '../pages/AdminPage';
+import { MapsPage } from '../pages/MapsPage';
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: 'timeline/:id', element: <TimelinePage /> },
       { path: 'pages', element: <NotePagesListPage /> },
       { path: 'pages/:id', element: <NotePageDetailPage /> },
+      { path: 'maps', element: <MapsPage /> },
       { path: 'trash', element: <TrashPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'admin', element: <AdminPage /> },

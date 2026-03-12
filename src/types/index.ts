@@ -107,7 +107,6 @@ export interface TimelineEvent {
   updatedAt: number;
 }
 
-export type Theme = 'light' | 'dark' | 'system';
 export type EntityViewMode = 'grid' | 'table' | 'graph';
 
 export interface ModalConfig {
@@ -167,6 +166,34 @@ export interface Timeline {
   filterEntityIds: string[];  // if non-empty, only show events linked to these entities
   filterTags: string[];       // if non-empty, only show events with these tags
   color: string;              // accent color for this timeline
+  workspaceId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ── Maps ──────────────────────────────────────────────────────────────────
+export interface CampaignMap {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl: string;
+  workspaceId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type MapPinType = 'entity' | 'map' | 'note' | 'custom';
+
+export interface MapPin {
+  id: string;
+  mapId: string;
+  x: number;   // 0-100 percentage of image width
+  y: number;   // 0-100 percentage of image height
+  label: string;
+  description?: string;
+  color: string;
+  type: MapPinType;
+  targetId?: string;  // entityId, mapId, or notePageId
   workspaceId?: string;
   createdAt: number;
   updatedAt: number;

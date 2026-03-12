@@ -12,7 +12,7 @@ import { useTimelineMetaStore } from './stores/timelineMetaStore';
 import { useEntityFolderStore } from './stores/entityFolderStore';
 import { useWorkspaceStore } from './stores/workspaceStore';
 import { useAuthStore } from './stores/authStore';
-import { useUIStore } from './stores/uiStore';
+import { useMapStore } from './stores/mapStore';
 import { AuthPage } from './pages/AuthPage';
 
 function LoadingScreen() {
@@ -44,23 +44,7 @@ export default function App() {
   const loadTimelineMeta = useTimelineMetaStore(s => s.load);
   const loadEntityFolders = useEntityFolderStore(s => s.load);
   const loadWorkspaces = useWorkspaceStore(s => s.load);
-  const { theme } = useUIStore();
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else if (theme === 'light') {
-      root.classList.remove('dark');
-      root.classList.add('light');
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', prefersDark);
-      root.classList.toggle('light', !prefersDark);
-    }
-  }, [theme]);
-
+  const loadMaps = useMapStore(s => s.load);
   // Step 1: initialize auth (check existing session)
   useEffect(() => {
     initialize();
@@ -85,6 +69,7 @@ export default function App() {
           loadFamilyTrees(),
           loadTimelineMeta(),
           loadEntityFolders(),
+          loadMaps(),
         ]);
         setReady(true);
       } catch (err) {
@@ -93,7 +78,7 @@ export default function App() {
       }
     }
     init();
-  }, [user, loadEntityTypes, loadEntities, loadRelationships, loadTimeline, loadNotePages, loadFamilyTrees, loadTimelineMeta, loadEntityFolders, loadWorkspaces]);
+  }, [user, loadEntityTypes, loadEntities, loadRelationships, loadTimeline, loadNotePages, loadFamilyTrees, loadTimelineMeta, loadEntityFolders, loadWorkspaces, loadMaps]);
 
   if (error) {
     return (

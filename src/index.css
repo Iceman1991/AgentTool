@@ -20,7 +20,13 @@ html.light {
     box-sizing: border-box;
   }
 
-  html, body, #root {
+  html {
+    height: 100dvh; /* iOS dynamic viewport height */
+    margin: 0;
+    padding: 0;
+  }
+
+  body, #root {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -272,6 +278,13 @@ html.light .mention-item {
 }
 html.light .mention-item:hover, html.light .mention-item.is-selected {
   background: rgba(139,94,42,0.08);
+}
+
+/* ── Mobile safe areas (iPhone notch / home bar) ──────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 /* ── Smooth transitions ────────────────────────────────────── */

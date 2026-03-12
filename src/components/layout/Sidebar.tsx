@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Network, TreePine, Clock, Settings,
   Plus, ChevronLeft, ChevronRight, Circle, FileText, ChevronDown, Trash2,
-  Briefcase, Check, LogOut, Pencil, X, ShieldAlert,
+  Briefcase, Check, LogOut, Pencil, X, ShieldAlert, Map,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
@@ -317,6 +317,7 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-2 flex flex-col gap-0.5">
         <NavItem to="/" icon={<LayoutDashboard size={15} />} label="Dashboard" collapsed={sidebarCollapsed} />
         <NavItem to="/graph" icon={<Network size={15} />} label="Beziehungsgraph" collapsed={sidebarCollapsed} />
+        <NavItem to="/maps" icon={<Map size={15} />} label="Karten" collapsed={sidebarCollapsed} />
         <NavItem
           to="/family-tree"
           icon={<TreePine size={15} />}

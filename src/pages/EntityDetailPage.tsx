@@ -83,7 +83,7 @@ export function EntityDetailPage() {
 
   // Layout controls bar (shared between modes)
   const layoutControls = entity.imageUrl ? (
-    <div className="flex items-center gap-3 px-6 py-2 border-b border-white/[0.05] bg-gray-900/30">
+    <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-2 border-b border-white/[0.05] bg-gray-900/30">
       {/* Layout toggle */}
       <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5 border border-white/[0.07]">
         <button
@@ -285,7 +285,7 @@ export function EntityDetailPage() {
               style={{ height: `${imageSize}px` }}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between pointer-events-auto">
+              <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-6 flex flex-wrap items-end justify-between gap-2 pointer-events-auto">
                 <div className="flex items-center gap-3">
                   <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="bg-black/40 border border-white/10">
                     <ArrowLeft size={14} />
@@ -295,7 +295,6 @@ export function EntityDetailPage() {
                       <h1 className="font-display text-2xl font-bold text-white drop-shadow">{entity.name}</h1>
                       <Badge color={entityType.color}>{entityType.name}</Badge>
                     </div>
-                    {entity.summary && <RichDisplay html={entity.summary} className="text-sm text-gray-300 mt-0.5 drop-shadow" />}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -311,7 +310,7 @@ export function EntityDetailPage() {
             </ImagePositionEditor>
           ) : (
             <div style={{ borderTop: `3px solid ${entityType.color}` }}>
-              <div className="flex items-center gap-3 p-6 pb-2">
+              <div className="flex items-center gap-3 p-4 sm:p-6 pb-2">
                 <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
                   <ArrowLeft size={14} />
                 </Button>
@@ -320,14 +319,13 @@ export function EntityDetailPage() {
                     <h1 className="font-display text-2xl font-bold text-gray-100">{entity.name}</h1>
                     <Badge color={entityType.color}>{entityType.name}</Badge>
                   </div>
-                  {entity.summary && <RichDisplay html={entity.summary} className="text-sm text-gray-400 mt-0.5" />}
                 </div>
                 {actionButtons}
               </div>
             </div>
           )}
           {layoutControls}
-          <div className="p-6 space-y-5">{contentSections}</div>
+          <div className="p-4 sm:p-6 space-y-5">{contentSections}</div>
         </>
       )}
 
@@ -336,7 +334,7 @@ export function EntityDetailPage() {
         <>
           {/* Header bar */}
           <div style={{ borderTop: `3px solid ${entityType.color}` }}>
-            <div className="flex items-center gap-3 px-6 pt-4 pb-2">
+            <div className="flex items-center gap-3 px-4 sm:px-6 pt-4 pb-2">
               <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
                 <ArrowLeft size={14} />
               </Button>
@@ -345,7 +343,6 @@ export function EntityDetailPage() {
                   <h1 className="font-display text-2xl font-bold text-gray-100 truncate">{entity.name}</h1>
                   <Badge color={entityType.color}>{entityType.name}</Badge>
                 </div>
-                {entity.summary && <p className="text-sm text-gray-400 mt-0.5">{entity.summary}</p>}
               </div>
               {actionButtons}
             </div>
@@ -353,25 +350,25 @@ export function EntityDetailPage() {
           {layoutControls}
 
           {/* Two-column content */}
-          <div className="flex gap-0 items-start">
+          <div className="flex flex-col-reverse sm:flex-row gap-0 items-start">
             {/* Left: content */}
-            <div className="flex-1 min-w-0 p-6 space-y-5">
+            <div className="flex-1 min-w-0 p-4 sm:p-6 space-y-5">
               {contentSections}
             </div>
 
             {/* Right: portrait image */}
             {entity.imageUrl && (
               <div
-                className="flex-shrink-0 p-4 pt-6"
-                style={{ width: `${imageSize + 32}px` }}
+                className="flex-shrink-0 p-4 pt-4 sm:pt-6 w-full sm:w-auto"
+                style={{ width: undefined }}
               >
                 <ImagePositionEditor
                   src={entity.imageUrl}
                   alt={entity.name}
                   position={entity.imagePosition}
                   onSave={handleSavePosition}
-                  className="rounded-xl border border-white/[0.08] overflow-hidden"
-                  style={{ width: `${imageSize}px`, height: `${Math.round(imageSize * 1.45)}px` }}
+                  className="rounded-xl border border-white/[0.08] overflow-hidden w-full sm:w-auto"
+                  style={{ width: `min(${imageSize}px, 100%)`, height: `${Math.round(imageSize * 1.45)}px` }}
                 />
               </div>
             )}

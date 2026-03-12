@@ -84,7 +84,7 @@ export function DashboardPage() {
   const maxCount = Math.max(...typeStats.map(x => x.count), 1);
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1100px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 32px)', maxWidth: '1100px', width: '100%', display: 'flex', flexDirection: 'column', gap: 'clamp(20px, 3vw, 32px)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
@@ -144,7 +144,7 @@ export function DashboardPage() {
                 }}>
                   <EntityTypeIcon name={et.icon} size={13} />
                 </div>
-                <div style={{ width: '100px', flexShrink: 0, fontSize: '13px', color: '#8A8070', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ width: 'clamp(64px, 18vw, 100px)', flexShrink: 0, fontSize: '13px', color: '#8A8070', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {et.name}
                 </div>
                 <div style={{ flex: 1, height: '8px', backgroundColor: '#1c1c23', borderRadius: '999px', overflow: 'hidden' }}>
@@ -166,7 +166,7 @@ export function DashboardPage() {
       )}
 
       {/* Two-column: recent entities + recent events */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
 
         {/* Recent entities */}
         <div style={{

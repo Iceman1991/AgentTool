@@ -3,7 +3,6 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { TagInput } from '../ui/TagInput';
 import { ImageUpload } from '../ui/ImageUpload';
-import { RichTextEditor } from '../ui/RichTextEditor';
 import { DynamicField } from './DynamicField';
 import { useEntityStore } from '../../stores/entityStore';
 import { useEntityFolderStore } from '../../stores/entityFolderStore';
@@ -22,7 +21,6 @@ export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormP
   const folders = getFoldersByType(entityType.id);
 
   const [name, setName] = useState(entity?.name || '');
-  const [summary, setSummary] = useState(entity?.summary || '');
   const [imageUrl, setImageUrl] = useState<string | null>(entity?.imageUrl || null);
   const [tags, setTags] = useState<string[]>(entity?.tags || []);
   const [folderId, setFolderId] = useState<string | null>(entity?.folderId ?? null);
@@ -45,18 +43,16 @@ export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormP
       if (entity) {
         await updateEntity(entity.id, {
           name: name.trim(),
-          summary: summary.trim() || undefined,
           imageUrl: imageUrl || undefined,
           tags,
           properties,
           folderId: folderId ?? undefined,
         });
-        onSave({ ...entity, name: name.trim(), summary: summary.trim() || undefined, imageUrl: imageUrl || undefined, tags, properties, folderId: folderId ?? undefined });
+        onSave({ ...entity, name: name.trim(), imageUrl: imageUrl || undefined, tags, properties, folderId: folderId ?? undefined });
       } else {
         const created = await createEntity({
           typeId: entityType.id,
           name: name.trim(),
-          summary: summary.trim() || undefined,
           imageUrl: imageUrl || undefined,
           tags,
           properties,
@@ -84,14 +80,6 @@ export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormP
         onChange={e => setName(e.target.value)}
         placeholder={`${entityType.name}-Name...`}
         required
-      />
-
-      <RichTextEditor
-        label="Zusammenfassung"
-        content={summary}
-        onChange={setSummary}
-        minHeight="72px"
-        placeholder="Kurze Beschreibung... (@Name für Verlinkung)"
       />
 
       {sortedProps.length > 0 && (
