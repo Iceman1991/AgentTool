@@ -132,9 +132,6 @@ export function AdminPage() {
         </div>
       )}
 
-      <p className="mt-6 text-xs text-gray-600">
-        Hinweis: Setze <code className="bg-gray-800 px-1 py-0.5 rounded text-gray-400">ADMIN_EMAIL</code> und <code className="bg-gray-800 px-1 py-0.5 rounded text-gray-400">SUPABASE_SERVICE_ROLE_KEY</code> in den Vercel-Umgebungsvariablen.
-      </p>
     </div>
   );
 }
