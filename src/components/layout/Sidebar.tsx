@@ -154,10 +154,7 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar, openModal, closeMobileSidebar } = useUIStore();
   const { signOut } = useAuthStore();
   const { workspaces, currentWorkspaceId, switchWorkspace, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaceStore();
-  const loadEntityTypes = useEntityTypeStore(s => s.load);
-  const loadEntities = useEntityStore(s => s.load);
-  const loadNotePages = useNotePageStore(s => s.load);
-  const loadEntityFolders = useEntityFolderStore(s => s.load);
+  // Use getState() in handlers below to avoid unstable references
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [addingWs, setAddingWs] = useState(false);
   const [newWsName, setNewWsName] = useState('');
@@ -170,7 +167,12 @@ export function Sidebar() {
     switchWorkspace(id);
     setWsMenuOpen(false);
     // Reload all workspace-scoped stores
-    await Promise.all([loadEntityTypes(), loadEntities(), loadNotePages(), loadEntityFolders()]);
+    await Promise.all([
+      useEntityTypeStore.getState().load(),
+      useEntityStore.getState().load(),
+      useNotePageStore.getState().load(),
+      useEntityFolderStore.getState().load(),
+    ]);
     navigate('/');
     closeMobileSidebar();
   };

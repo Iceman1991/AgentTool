@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { seedDatabase } from './seed';
@@ -32,45 +32,45 @@ function LoadingScreen() {
 export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   const { user, authLoading, initialize } = useAuthStore();
 
-  const loadEntityTypes = useEntityTypeStore(s => s.load);
-  const loadEntities = useEntityStore(s => s.load);
-  const loadRelationships = useRelationshipStore(s => s.load);
-  const loadTimeline = useTimelineStore(s => s.load);
-  const loadNotePages = useNotePageStore(s => s.load);
-  const loadFamilyTrees = useFamilyTreeStore(s => s.load);
-  const loadTimelineMeta = useTimelineMetaStore(s => s.load);
-  const loadEntityFolders = useEntityFolderStore(s => s.load);
-  const loadWorkspaces = useWorkspaceStore(s => s.load);
-  const loadMaps = useMapStore(s => s.load);
   // Step 1: initialize auth (check existing session)
   useEffect(() => {
     initialize();
   }, [initialize]);
 
   // Step 2: once authenticated, load all data stores
+  // Uses a ref to track which user ID we already loaded for,
+  // so Supabase token refreshes (which create a new user object) don't re-trigger loading.
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      loadedUserIdRef.current = null;
+      setReady(false);
+      return;
+    }
+    if (loadedUserIdRef.current === user.id) return; // already loaded for this user
+
     setReady(false);
     setError(null);
 
     async function init() {
       try {
         await seedDatabase();
-        await loadWorkspaces();
+        await useWorkspaceStore.getState().load();
         await Promise.all([
-          loadEntityTypes(),
-          loadEntities(),
-          loadRelationships(),
-          loadTimeline(),
-          loadNotePages(),
-          loadFamilyTrees(),
-          loadTimelineMeta(),
-          loadEntityFolders(),
-          loadMaps(),
+          useEntityTypeStore.getState().load(),
+          useEntityStore.getState().load(),
+          useRelationshipStore.getState().load(),
+          useTimelineStore.getState().load(),
+          useNotePageStore.getState().load(),
+          useFamilyTreeStore.getState().load(),
+          useTimelineMetaStore.getState().load(),
+          useEntityFolderStore.getState().load(),
+          useMapStore.getState().load(),
         ]);
+        loadedUserIdRef.current = user!.id;
         setReady(true);
       } catch (err) {
         console.error('Failed to initialize:', err);
@@ -78,7 +78,7 @@ export default function App() {
       }
     }
     init();
-  }, [user, loadEntityTypes, loadEntities, loadRelationships, loadTimeline, loadNotePages, loadFamilyTrees, loadTimelineMeta, loadEntityFolders, loadWorkspaces, loadMaps]);
+  }, [user]);
 
   if (error) {
     return (
