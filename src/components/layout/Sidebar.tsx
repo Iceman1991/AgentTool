@@ -458,7 +458,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-2 border-t border-white/[0.06] flex flex-col gap-0.5">
+      <div className="p-2 border-t border-white/[0.06] flex flex-col gap-0.5 flex-shrink-0">
         <NavItem to="/trash" icon={<Trash2 size={15} />} label="Papierkorb" collapsed={sidebarCollapsed} />
         <NavItem to="/settings" icon={<Settings size={15} />} label="Einstellungen" collapsed={sidebarCollapsed} />
         <NavItem to="/admin" icon={<ShieldAlert size={15} />} label="Admin" collapsed={sidebarCollapsed} />
