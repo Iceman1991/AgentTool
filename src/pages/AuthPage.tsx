@@ -46,8 +46,8 @@ export function AuthPage() {
     <div className="fixed inset-0 bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="font-display text-3xl font-bold text-accent-400 mb-1">PF2 Kampagne</h1>
-          <p className="text-gray-500 text-sm">Deine Kampagnen-Notizen in der Cloud</p>
+          <h1 className="font-display text-3xl font-bold text-accent-400 mb-1">Campaign Manager</h1>
+          <p className="text-gray-500 text-sm">Verwalte deine Kampagnenwelt</p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl">

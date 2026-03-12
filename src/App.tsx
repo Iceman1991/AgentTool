@@ -22,7 +22,7 @@ function LoadingScreen() {
         <div className="w-16 h-16 rounded-full border-4 border-gray-700 border-t-accent-500 animate-spin" />
       </div>
       <div className="text-center">
-        <h1 className="font-display text-2xl font-bold text-accent-400 mb-1">PF2 Kampagnen-Notizen</h1>
+        <h1 className="font-display text-2xl font-bold text-accent-400 mb-1">Campaign Manager</h1>
         <p className="text-gray-400 text-sm">Daten werden geladen...</p>
       </div>
     </div>

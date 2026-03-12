@@ -41,5 +41,5 @@ export async function seedDatabase(): Promise<void> {
     supabase.from('relationship_types').insert(relationshipTypes.map(rt => ({ ...rt, user_id: userId }))),
   ]);
 
-  console.log('[PF2] Database seeded with default data');
+  console.log('[Campaign Manager] Database seeded with default data');
 }

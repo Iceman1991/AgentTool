@@ -90,10 +90,10 @@ export function DashboardPage() {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: '28px', fontWeight: 700, color: '#EDE8DC', margin: 0, lineHeight: 1.1 }}>
-            Kampagnen-Dashboard
+            Campaign Manager
           </h1>
           <p style={{ color: '#8A8070', fontSize: '14px', marginTop: '6px' }}>
-            Überblick deiner Pathfinder 2 Kampagne
+            Überblick deiner Kampagnenwelt
           </p>
         </div>
         {sortedEvents.length > 0 && (
