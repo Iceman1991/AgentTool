@@ -139,16 +139,26 @@ export function NotePageEditor({ page }: NotePageEditorProps) {
             {icon}
           </button>
           {showEmojiPicker && (
-            <div className="absolute top-12 left-0 z-30 bg-gray-800 border border-gray-700 rounded-xl shadow-xl p-3 grid grid-cols-8 gap-1.5">
+            <div style={{
+              position: 'absolute', top: '52px', left: 0, zIndex: 30,
+              backgroundColor: '#1f2937', border: '1px solid #374151',
+              borderRadius: '12px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+              padding: '12px', display: 'flex', flexWrap: 'wrap', gap: '6px', width: '232px',
+            }}>
               {EMOJI_OPTIONS.map(e => (
                 <button
                   key={e}
                   type="button"
                   onClick={() => handleIconSelect(e)}
-                  className={cn(
-                    'w-8 h-8 flex items-center justify-center rounded-lg text-xl hover:bg-gray-700 transition-colors',
-                    icon === e && 'bg-gray-700',
-                  )}
+                  style={{
+                    flexShrink: 0, width: '32px', height: '32px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '20px',
+                    backgroundColor: icon === e ? '#374151' : 'transparent',
+                    transition: 'background-color 120ms',
+                  }}
+                  onMouseEnter={e2 => { (e2.currentTarget as HTMLButtonElement).style.backgroundColor = '#374151'; }}
+                  onMouseLeave={e2 => { (e2.currentTarget as HTMLButtonElement).style.backgroundColor = icon === e ? '#374151' : 'transparent'; }}
                 >
                   {e}
                 </button>
@@ -156,7 +166,13 @@ export function NotePageEditor({ page }: NotePageEditorProps) {
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(false)}
-                className="col-span-8 mt-1 text-xs text-gray-500 hover:text-gray-300 transition-colors py-1"
+                style={{
+                  width: '100%', marginTop: '4px', padding: '4px 0',
+                  fontSize: '12px', color: '#6b7280', background: 'none',
+                  border: 'none', cursor: 'pointer', transition: 'color 120ms',
+                }}
+                onMouseEnter={e2 => { (e2.currentTarget as HTMLButtonElement).style.color = '#d1d5db'; }}
+                onMouseLeave={e2 => { (e2.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
               >
                 Schließen
               </button>
