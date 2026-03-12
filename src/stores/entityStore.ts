@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { db } from '../db';
+import { supabase, getUserId } from '../lib/supabase';
 import { uid } from '../lib/utils';
-import type { Entity, PropertyValue } from '../types';
+import type { Entity, ImagePosition } from '../types';
 import { useWorkspaceStore } from './workspaceStore';
+
+type PropertyValue = string | number | boolean | string[] | null;
 
 interface EntityState {
   entities: Entity[];
@@ -24,82 +26,97 @@ export const useEntityStore = create<EntityState>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
+    const userId = getUserId();
     const wsId = useWorkspaceStore.getState().currentWorkspaceId;
-    const all = await db.entities.orderBy('createdAt').toArray();
-    set({ entities: all.filter(e => !e.deletedAt && (!e.workspaceId || e.workspaceId === wsId)), loading: false });
+    const { data } = await supabase
+      .from('entities')
+      .select('*')
+      .eq('user_id', userId)
+      .order('"createdAt"', { ascending: true });
+    const all = (data ?? []).map(({ user_id: _u, ...rest }) => rest as Entity);
+    set({
+      entities: all.filter(e => !e.deletedAt && (!e.workspaceId || e.workspaceId === wsId)),
+      loading: false,
+    });
   },
 
   createEntity: async (data) => {
+    const userId = getUserId();
     const wsId = useWorkspaceStore.getState().currentWorkspaceId;
+    const now = Date.now();
+    const typeEntities = get().entities.filter(e => e.typeId === data.typeId);
+    const maxOrder = typeEntities.reduce((m, e) => Math.max(m, e.order ?? 0), -1);
     const newEntity: Entity = {
       id: uid(),
       typeId: data.typeId,
       name: data.name,
       summary: data.summary,
       imageUrl: data.imageUrl,
-      properties: data.properties || {},
-      tags: data.tags || [],
+      imagePosition: data.imagePosition,
+      folderId: data.folderId,
+      order: maxOrder + 1,
+      properties: data.properties ?? {},
+      tags: data.tags ?? [],
       workspaceId: wsId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
     };
-    await db.entities.add(newEntity);
+    await supabase.from('entities').insert({ ...newEntity, user_id: userId });
     set(state => ({ entities: [...state.entities, newEntity] }));
     return newEntity;
   },
 
   updateEntity: async (id, data) => {
     const updated = { ...data, updatedAt: Date.now() };
-    await db.entities.update(id, updated);
+    await supabase.from('entities').update(updated).eq('id', id);
     set(state => ({
       entities: state.entities.map(e => e.id === id ? { ...e, ...updated } : e),
     }));
   },
 
   deleteEntity: async (id) => {
-    await db.entities.update(id, { deletedAt: Date.now() });
+    const deletedAt = Date.now();
+    await supabase.from('entities').update({ deletedAt }).eq('id', id);
     set(state => ({ entities: state.entities.filter(e => e.id !== id) }));
   },
 
   hardDeleteEntity: async (id) => {
-    await db.entities.delete(id);
-    await db.relationships
-      .where('sourceId').equals(id)
-      .or('targetId').equals(id)
-      .delete();
+    await supabase.from('entities').delete().eq('id', id);
     set(state => ({ entities: state.entities.filter(e => e.id !== id) }));
   },
 
   duplicateEntity: async (id) => {
     const source = get().entities.find(e => e.id === id);
     if (!source) throw new Error('Entity not found');
+    const userId = getUserId();
     const typeEntities = get().entities.filter(e => e.typeId === source.typeId);
-    const maxOrder = typeEntities.reduce((m, e) => Math.max(m, e.order ?? 0), 0);
+    const maxOrder = typeEntities.reduce((m, e) => Math.max(m, e.order ?? 0), -1);
+    const now = Date.now();
     const copy: Entity = {
       ...source,
       id: uid(),
-      name: `${source.name} (Kopie)`,
+      name: source.name + ' (Kopie)',
       order: maxOrder + 1,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
       deletedAt: undefined,
     };
-    await db.entities.add(copy);
+    await supabase.from('entities').insert({ ...copy, user_id: userId });
     set(state => ({ entities: [...state.entities, copy] }));
     return copy;
   },
 
   reorderEntities: async (typeId, orderedIds) => {
-    const updates = orderedIds.map((id, idx) => ({ id, order: idx }));
-    await db.transaction('rw', db.entities, async () => {
-      for (const { id, order } of updates) {
-        await db.entities.update(id, { order });
-      }
-    });
+    const now = Date.now();
+    await Promise.all(
+      orderedIds.map((id, order) =>
+        supabase.from('entities').update({ order, updatedAt: now }).eq('id', id)
+      )
+    );
     set(state => ({
       entities: state.entities.map(e => {
-        const upd = updates.find(u => u.id === e.id);
-        return upd ? { ...e, order: upd.order } : e;
+        const idx = orderedIds.indexOf(e.id);
+        return idx !== -1 ? { ...e, order: idx } : e;
       }),
     }));
   },
@@ -110,5 +127,4 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     .sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)),
 }));
 
-// Suppress unused import warning
 export type { PropertyValue };

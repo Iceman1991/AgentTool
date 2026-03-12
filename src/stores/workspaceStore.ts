@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { db } from '../db';
+import { supabase, getUserId } from '../lib/supabase';
 import { uid } from '../lib/utils';
 import type { Workspace } from '../types';
 
@@ -24,8 +24,15 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       currentWorkspaceId: DEFAULT_WS_ID,
 
       load: async () => {
-        const all = await db.workspaces.orderBy('createdAt').toArray();
-        // If no workspaces exist yet, create the default one
+        const userId = getUserId();
+        const { data } = await supabase
+          .from('workspaces')
+          .select('*')
+          .eq('user_id', userId)
+          .order('"createdAt"', { ascending: true });
+
+        const all: Workspace[] = (data ?? []).map(({ user_id: _u, ...rest }) => rest as Workspace);
+
         if (all.length === 0) {
           const defaultWs: Workspace = {
             id: DEFAULT_WS_ID,
@@ -33,7 +40,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
-          await db.workspaces.add(defaultWs);
+          await supabase.from('workspaces').insert({ ...defaultWs, user_id: userId });
           set({ workspaces: [defaultWs] });
         } else {
           set({ workspaces: all });
@@ -41,6 +48,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       },
 
       createWorkspace: async (name, description, color) => {
+        const userId = getUserId();
         const ws: Workspace = {
           id: uid(),
           name,
@@ -49,28 +57,26 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
-        await db.workspaces.add(ws);
+        await supabase.from('workspaces').insert({ ...ws, user_id: userId });
         set(state => ({ workspaces: [...state.workspaces, ws] }));
         return ws;
       },
 
       updateWorkspace: async (id, data) => {
         const updated = { ...data, updatedAt: Date.now() };
-        await db.workspaces.update(id, updated);
+        await supabase.from('workspaces').update(updated).eq('id', id);
         set(state => ({
           workspaces: state.workspaces.map(w => w.id === id ? { ...w, ...updated } : w),
         }));
       },
 
       deleteWorkspace: async (id) => {
-        if (id === DEFAULT_WS_ID) return; // can't delete default
-        // Move all data to default workspace
-        for (const tbl of ['entityTypes', 'entities', 'entityFolders', 'relationships', 'notePages', 'familyTrees', 'timelines']) {
-          await (db as any)[tbl]
-            .where('workspaceId').equals(id)
-            .modify({ workspaceId: DEFAULT_WS_ID });
+        if (id === DEFAULT_WS_ID) return;
+        const userId = getUserId();
+        for (const tbl of ['entity_types', 'entities', 'entity_folders', 'note_pages', 'family_trees', 'timelines']) {
+          await supabase.from(tbl).update({ workspaceId: DEFAULT_WS_ID }).eq('workspaceId', id).eq('user_id', userId);
         }
-        await db.workspaces.delete(id);
+        await supabase.from('workspaces').delete().eq('id', id);
         set(state => {
           const remaining = state.workspaces.filter(w => w.id !== id);
           return {
@@ -82,9 +88,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         });
       },
 
-      switchWorkspace: (id) => {
-        set({ currentWorkspaceId: id });
-      },
+      switchWorkspace: (id) => set({ currentWorkspaceId: id }),
 
       getCurrentWorkspace: () => {
         const { workspaces, currentWorkspaceId } = get();

@@ -11,7 +11,9 @@ import { useFamilyTreeStore } from './stores/familyTreeStore';
 import { useTimelineMetaStore } from './stores/timelineMetaStore';
 import { useEntityFolderStore } from './stores/entityFolderStore';
 import { useWorkspaceStore } from './stores/workspaceStore';
+import { useAuthStore } from './stores/authStore';
 import { useUIStore } from './stores/uiStore';
+import { AuthPage } from './pages/AuthPage';
 
 function LoadingScreen() {
   return (
@@ -30,6 +32,8 @@ function LoadingScreen() {
 export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { user, authLoading, initialize } = useAuthStore();
 
   const loadEntityTypes = useEntityTypeStore(s => s.load);
   const loadEntities = useEntityStore(s => s.load);
@@ -51,18 +55,26 @@ export default function App() {
       root.classList.remove('dark');
       root.classList.add('light');
     } else {
-      // system
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       root.classList.toggle('dark', prefersDark);
       root.classList.toggle('light', !prefersDark);
     }
   }, [theme]);
 
+  // Step 1: initialize auth (check existing session)
   useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Step 2: once authenticated, load all data stores
+  useEffect(() => {
+    if (!user) return;
+    setReady(false);
+    setError(null);
+
     async function init() {
       try {
         await seedDatabase();
-        // Workspaces must load first so other stores can filter by currentWorkspaceId
         await loadWorkspaces();
         await Promise.all([
           loadEntityTypes(),
@@ -81,7 +93,7 @@ export default function App() {
       }
     }
     init();
-  }, [loadEntityTypes, loadEntities, loadRelationships, loadTimeline, loadNotePages, loadFamilyTrees, loadTimelineMeta, loadEntityFolders, loadWorkspaces]);
+  }, [user, loadEntityTypes, loadEntities, loadRelationships, loadTimeline, loadNotePages, loadFamilyTrees, loadTimelineMeta, loadEntityFolders, loadWorkspaces]);
 
   if (error) {
     return (
@@ -99,6 +111,13 @@ export default function App() {
     );
   }
 
+  // Auth is still being checked (first load)
+  if (authLoading) return <LoadingScreen />;
+
+  // Not logged in → show login/register
+  if (!user) return <AuthPage />;
+
+  // Logged in but data not yet loaded
   if (!ready) return <LoadingScreen />;
 
   return <RouterProvider router={router} />;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import dagre from 'dagre';
-import { db } from '../db';
+import { supabase, getUserId } from '../lib/supabase';
 import { uid, getNextColor } from '../lib/utils';
 import type { Relationship, RelationshipType, Entity, EntityType } from '../types';
 
@@ -8,11 +8,7 @@ export interface GraphNode {
   id: string;
   type: string;
   position: { x: number; y: number };
-  data: {
-    entity: Entity;
-    entityType: EntityType;
-    label: string;
-  };
+  data: { entity: Entity; entityType: EntityType; label: string };
 }
 
 export interface GraphEdge {
@@ -20,11 +16,7 @@ export interface GraphEdge {
   source: string;
   target: string;
   type: string;
-  data: {
-    relationship: Relationship;
-    relationshipType: RelationshipType | undefined;
-    label: string;
-  };
+  data: { relationship: Relationship; relationshipType: RelationshipType | undefined; label: string };
   markerEnd?: object;
   animated?: boolean;
 }
@@ -40,49 +32,26 @@ interface RelationshipState {
   createRelationshipType: (data: Partial<RelationshipType>) => Promise<RelationshipType>;
   updateRelationshipType: (id: string, data: Partial<RelationshipType>) => Promise<void>;
   deleteRelationshipType: (id: string) => Promise<void>;
-  buildGraphData: (
-    entities: Entity[],
-    entityTypes: EntityType[],
-    filterEntityTypeIds?: string[],
-    filterRelTypeIds?: string[],
-    searchQuery?: string,
-  ) => { nodes: GraphNode[]; edges: GraphEdge[] };
-  buildFamilyTreeData: (
-    entities: Entity[],
-    entityTypes: EntityType[],
-    rootEntityId?: string,
-  ) => { nodes: GraphNode[]; edges: GraphEdge[] };
+  buildGraphData: (entities: Entity[], entityTypes: EntityType[], filterEntityTypeIds?: string[], filterRelTypeIds?: string[], searchQuery?: string) => { nodes: GraphNode[]; edges: GraphEdge[] };
+  buildFamilyTreeData: (entities: Entity[], entityTypes: EntityType[], rootEntityId?: string) => { nodes: GraphNode[]; edges: GraphEdge[] };
   getRelationshipsByEntity: (entityId: string) => Relationship[];
   syncDeletedEntity: (entityId: string) => void;
 }
 
-function applyDagreLayout(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  direction: 'LR' | 'TB' = 'LR',
-  nodeWidth = 200,
-  nodeHeight = 80,
-): GraphNode[] {
+function applyDagreLayout(nodes: GraphNode[], edges: GraphEdge[], direction: 'LR' | 'TB' = 'LR', nodeWidth = 200, nodeHeight = 80): GraphNode[] {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 });
-
   nodes.forEach(n => g.setNode(n.id, { width: nodeWidth, height: nodeHeight }));
   edges.forEach(e => g.setEdge(e.source, e.target));
-
   dagre.layout(g);
-
   return nodes.map(n => {
     const pos = g.node(n.id);
-    return {
-      ...n,
-      position: {
-        x: pos ? pos.x - nodeWidth / 2 : 0,
-        y: pos ? pos.y - nodeHeight / 2 : 0,
-      },
-    };
+    return { ...n, position: { x: pos ? pos.x - nodeWidth / 2 : 0, y: pos ? pos.y - nodeHeight / 2 : 0 } };
   });
 }
+
+const FALLBACK_TYPE: EntityType = { id: '', name: 'Unbekannt', slug: 'unknown', color: '#6B7280', icon: 'Circle', properties: [], isSystem: false, createdAt: 0, updatedAt: 0 };
 
 export const useRelationshipStore = create<RelationshipState>((set, get) => ({
   relationships: [],
@@ -91,41 +60,38 @@ export const useRelationshipStore = create<RelationshipState>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
-    const [relationships, relationshipTypes] = await Promise.all([
-      db.relationships.orderBy('createdAt').toArray(),
-      db.relationshipTypes.toArray(),
+    const userId = getUserId();
+    const [{ data: relData }, { data: rtData }] = await Promise.all([
+      supabase.from('relationships').select('*').eq('user_id', userId).order('createdAt', { ascending: true }),
+      supabase.from('relationship_types').select('*').eq('user_id', userId),
     ]);
+    const relationships = (relData ?? []).map(({ user_id: _u, ...r }: any) => r as Relationship);
+    const relationshipTypes = (rtData ?? []).map(({ user_id: _u, ...r }: any) => r as RelationshipType);
     set({ relationships, relationshipTypes, loading: false });
   },
 
   createRelationship: async (data) => {
+    const userId = getUserId();
     const relType = get().relationshipTypes.find(rt => rt.id === data.typeId);
-    const newRel: Relationship = {
-      ...data,
-      id: uid(),
-      isFamilial: relType?.isFamilial || false,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    await db.relationships.add(newRel);
+    const newRel: Relationship = { ...data, id: uid(), isFamilial: relType?.isFamilial || false, createdAt: Date.now(), updatedAt: Date.now() };
+    await supabase.from('relationships').insert({ ...newRel, user_id: userId });
     set(state => ({ relationships: [...state.relationships, newRel] }));
     return newRel;
   },
 
   updateRelationship: async (id, data) => {
     const updated = { ...data, updatedAt: Date.now() };
-    await db.relationships.update(id, updated);
-    set(state => ({
-      relationships: state.relationships.map(r => r.id === id ? { ...r, ...updated } : r),
-    }));
+    await supabase.from('relationships').update(updated).eq('id', id);
+    set(state => ({ relationships: state.relationships.map(r => r.id === id ? { ...r, ...updated } : r) }));
   },
 
   deleteRelationship: async (id) => {
-    await db.relationships.delete(id);
+    await supabase.from('relationships').delete().eq('id', id);
     set(state => ({ relationships: state.relationships.filter(r => r.id !== id) }));
   },
 
   createRelationshipType: async (data) => {
+    const userId = getUserId();
     const usedColors = get().relationshipTypes.map(rt => rt.color);
     const newType: RelationshipType = {
       id: uid(),
@@ -135,180 +101,77 @@ export const useRelationshipStore = create<RelationshipState>((set, get) => ({
       direction: data.direction || 'undirected',
       isFamilial: data.isFamilial || false,
     };
-    await db.relationshipTypes.add(newType);
+    await supabase.from('relationship_types').insert({ ...newType, user_id: userId });
     set(state => ({ relationshipTypes: [...state.relationshipTypes, newType] }));
     return newType;
   },
 
   updateRelationshipType: async (id, data) => {
-    await db.relationshipTypes.update(id, data);
-    set(state => ({
-      relationshipTypes: state.relationshipTypes.map(rt => rt.id === id ? { ...rt, ...data } : rt),
-    }));
+    await supabase.from('relationship_types').update(data).eq('id', id);
+    set(state => ({ relationshipTypes: state.relationshipTypes.map(rt => rt.id === id ? { ...rt, ...data } : rt) }));
   },
 
   deleteRelationshipType: async (id) => {
-    await db.relationshipTypes.delete(id);
-    set(state => ({
-      relationshipTypes: state.relationshipTypes.filter(rt => rt.id !== id),
-    }));
+    await supabase.from('relationship_types').delete().eq('id', id);
+    set(state => ({ relationshipTypes: state.relationshipTypes.filter(rt => rt.id !== id) }));
   },
 
   buildGraphData: (entities, entityTypes, filterEntityTypeIds, filterRelTypeIds, searchQuery) => {
     const { relationships, relationshipTypes } = get();
-
-    let filteredEntities = entities;
-    if (filterEntityTypeIds && filterEntityTypeIds.length > 0) {
-      filteredEntities = filteredEntities.filter(e => filterEntityTypeIds.includes(e.typeId));
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filteredEntities = filteredEntities.filter(e => e.name.toLowerCase().includes(q));
-    }
-
-    const entityIds = new Set(filteredEntities.map(e => e.id));
-
-    let filteredRels = relationships.filter(r => entityIds.has(r.sourceId) && entityIds.has(r.targetId));
-    if (filterRelTypeIds && filterRelTypeIds.length > 0) {
-      filteredRels = filteredRels.filter(r => filterRelTypeIds.includes(r.typeId));
-    }
-
-    const entityTypeMap = new Map(entityTypes.map(et => [et.id, et]));
-
-    const nodes: GraphNode[] = filteredEntities.map(entity => ({
-      id: entity.id,
-      type: 'entityNode',
-      position: { x: 0, y: 0 },
-      data: {
-        entity,
-        entityType: entityTypeMap.get(entity.typeId) || {
-          id: entity.typeId,
-          name: 'Unbekannt',
-          slug: 'unknown',
-          color: '#6B7280',
-          icon: 'Circle',
-          properties: [],
-          isSystem: false,
-          createdAt: 0,
-          updatedAt: 0,
-        },
-        label: entity.name,
-      },
+    let fe = entities;
+    if (filterEntityTypeIds?.length) fe = fe.filter(e => filterEntityTypeIds.includes(e.typeId));
+    if (searchQuery) { const q = searchQuery.toLowerCase(); fe = fe.filter(e => e.name.toLowerCase().includes(q)); }
+    const eIds = new Set(fe.map(e => e.id));
+    let rels = relationships.filter(r => eIds.has(r.sourceId) && eIds.has(r.targetId));
+    if (filterRelTypeIds?.length) rels = rels.filter(r => filterRelTypeIds.includes(r.typeId));
+    const etMap = new Map(entityTypes.map(et => [et.id, et]));
+    const rtMap = new Map(relationshipTypes.map(rt => [rt.id, rt]));
+    const nodes: GraphNode[] = fe.map(entity => ({
+      id: entity.id, type: 'entityNode', position: { x: 0, y: 0 },
+      data: { entity, entityType: etMap.get(entity.typeId) || FALLBACK_TYPE, label: entity.name },
     }));
-
-    const relTypeMap = new Map(relationshipTypes.map(rt => [rt.id, rt]));
-
-    const edges: GraphEdge[] = filteredRels.map(rel => {
-      const relType = relTypeMap.get(rel.typeId);
-      return {
-        id: rel.id,
-        source: rel.sourceId,
-        target: rel.targetId,
-        type: 'relationshipEdge',
-        data: {
-          relationship: rel,
-          relationshipType: relType,
-          label: rel.label || relType?.label || '',
-        },
-        animated: false,
-      };
+    const edges: GraphEdge[] = rels.map(rel => {
+      const relType = rtMap.get(rel.typeId);
+      return { id: rel.id, source: rel.sourceId, target: rel.targetId, type: 'relationshipEdge', data: { relationship: rel, relationshipType: relType, label: rel.label || relType?.label || '' }, animated: false };
     });
-
-    const laidOutNodes = nodes.length > 0 ? applyDagreLayout(nodes, edges) : nodes;
-
-    return { nodes: laidOutNodes, edges };
+    return { nodes: nodes.length > 0 ? applyDagreLayout(nodes, edges) : nodes, edges };
   },
 
   buildFamilyTreeData: (entities, entityTypes, rootEntityId) => {
     const { relationships, relationshipTypes } = get();
-
     const familialRels = relationships.filter(r => r.isFamilial);
-    const entityIds = new Set(entities.map(e => e.id));
-
+    const eIds = new Set(entities.map(e => e.id));
     const connectedIds = new Set<string>();
     if (rootEntityId) {
-      // BFS from root
       const queue = [rootEntityId];
       connectedIds.add(rootEntityId);
       while (queue.length > 0) {
-        const current = queue.shift()!;
+        const cur = queue.shift()!;
         for (const rel of familialRels) {
-          if (rel.sourceId === current && entityIds.has(rel.targetId) && !connectedIds.has(rel.targetId)) {
-            connectedIds.add(rel.targetId);
-            queue.push(rel.targetId);
-          }
-          if (rel.targetId === current && entityIds.has(rel.sourceId) && !connectedIds.has(rel.sourceId)) {
-            connectedIds.add(rel.sourceId);
-            queue.push(rel.sourceId);
-          }
+          if (rel.sourceId === cur && eIds.has(rel.targetId) && !connectedIds.has(rel.targetId)) { connectedIds.add(rel.targetId); queue.push(rel.targetId); }
+          if (rel.targetId === cur && eIds.has(rel.sourceId) && !connectedIds.has(rel.sourceId)) { connectedIds.add(rel.sourceId); queue.push(rel.sourceId); }
         }
       }
     } else {
-      // All entities that have familial relationships
       for (const rel of familialRels) {
-        if (entityIds.has(rel.sourceId)) connectedIds.add(rel.sourceId);
-        if (entityIds.has(rel.targetId)) connectedIds.add(rel.targetId);
+        if (eIds.has(rel.sourceId)) connectedIds.add(rel.sourceId);
+        if (eIds.has(rel.targetId)) connectedIds.add(rel.targetId);
       }
     }
-
-    const filteredEntities = entities.filter(e => connectedIds.has(e.id));
-    const entityTypeMap = new Map(entityTypes.map(et => [et.id, et]));
-
-    const nodes: GraphNode[] = filteredEntities.map(entity => ({
-      id: entity.id,
-      type: 'familyNode',
-      position: { x: 0, y: 0 },
-      data: {
-        entity,
-        entityType: entityTypeMap.get(entity.typeId) || {
-          id: entity.typeId,
-          name: 'Unbekannt',
-          slug: 'unknown',
-          color: '#6B7280',
-          icon: 'Circle',
-          properties: [],
-          isSystem: false,
-          createdAt: 0,
-          updatedAt: 0,
-        },
-        label: entity.name,
-      },
+    const fe2 = entities.filter(e => connectedIds.has(e.id));
+    const etMap2 = new Map(entityTypes.map(et => [et.id, et]));
+    const rtMap2 = new Map(relationshipTypes.map(rt => [rt.id, rt]));
+    const fIds = new Set(fe2.map(e => e.id));
+    const nodes2: GraphNode[] = fe2.map(entity => ({
+      id: entity.id, type: 'familyNode', position: { x: 0, y: 0 },
+      data: { entity, entityType: etMap2.get(entity.typeId) || FALLBACK_TYPE, label: entity.name },
     }));
-
-    const relTypeMap = new Map(relationshipTypes.map(rt => [rt.id, rt]));
-    const filteredIds = new Set(filteredEntities.map(e => e.id));
-
-    const edges: GraphEdge[] = familialRels
-      .filter(r => filteredIds.has(r.sourceId) && filteredIds.has(r.targetId))
-      .map(rel => {
-        const relType = relTypeMap.get(rel.typeId);
-        return {
-          id: rel.id,
-          source: rel.sourceId,
-          target: rel.targetId,
-          type: 'relationshipEdge',
-          data: {
-            relationship: rel,
-            relationshipType: relType,
-            label: rel.label || relType?.label || '',
-          },
-        };
-      });
-
-    const laidOutNodes = nodes.length > 0 ? applyDagreLayout(nodes, edges, 'TB', 180, 240) : nodes;
-
-    return { nodes: laidOutNodes, edges };
+    const edges2: GraphEdge[] = familialRels
+      .filter(r => fIds.has(r.sourceId) && fIds.has(r.targetId))
+      .map(rel => { const relType = rtMap2.get(rel.typeId); return { id: rel.id, source: rel.sourceId, target: rel.targetId, type: 'relationshipEdge', data: { relationship: rel, relationshipType: relType, label: rel.label || relType?.label || '' } }; });
+    return { nodes: nodes2.length > 0 ? applyDagreLayout(nodes2, edges2, 'TB', 180, 240) : nodes2, edges: edges2 };
   },
 
-  getRelationshipsByEntity: (entityId) => {
-    return get().relationships.filter(r => r.sourceId === entityId || r.targetId === entityId);
-  },
-
-  syncDeletedEntity: (entityId) => {
-    set(state => ({
-      relationships: state.relationships.filter(
-        r => r.sourceId !== entityId && r.targetId !== entityId
-      ),
-    }));
-  },
+  getRelationshipsByEntity: (entityId) => get().relationships.filter(r => r.sourceId === entityId || r.targetId === entityId),
+  syncDeletedEntity: (entityId) => set(state => ({ relationships: state.relationships.filter(r => r.sourceId !== entityId && r.targetId !== entityId) })),
 }));

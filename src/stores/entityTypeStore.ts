@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db } from '../db';
+import { supabase, getUserId } from '../lib/supabase';
 import { uid, generateSlug, generateKey, getNextColor } from '../lib/utils';
 import type { EntityType, PropertyDefinition, PropertyType, SelectOption } from '../types';
 import { useWorkspaceStore } from './workspaceStore';
@@ -25,14 +25,21 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
+    const userId = getUserId();
     const wsId = useWorkspaceStore.getState().currentWorkspaceId;
-    const types = await db.entityTypes.orderBy('createdAt').toArray();
-    set({ entityTypes: types.filter(t => !t.workspaceId || t.workspaceId === wsId), loading: false });
+    const { data } = await supabase
+      .from('entity_types')
+      .select('*')
+      .eq('user_id', userId)
+      .order('"createdAt"', { ascending: true });
+    const all = (data ?? []).map(({ user_id: _u, ...rest }) => rest as EntityType);
+    set({ entityTypes: all.filter(t => !t.workspaceId || t.workspaceId === wsId), loading: false });
   },
 
   createEntityType: async (data) => {
-    const usedColors = get().entityTypes.map(t => t.color);
+    const userId = getUserId();
     const wsId = useWorkspaceStore.getState().currentWorkspaceId;
+    const usedColors = get().entityTypes.map(t => t.color);
     const newType: EntityType = {
       id: uid(),
       name: data.name || 'Neuer Typ',
@@ -46,24 +53,22 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    await db.entityTypes.add(newType);
+    await supabase.from('entity_types').insert({ ...newType, user_id: userId });
     set(state => ({ entityTypes: [...state.entityTypes, newType] }));
     return newType;
   },
 
   updateEntityType: async (id, data) => {
     const updated = { ...data, updatedAt: Date.now() };
-    await db.entityTypes.update(id, updated);
+    await supabase.from('entity_types').update(updated).eq('id', id);
     set(state => ({
       entityTypes: state.entityTypes.map(t => t.id === id ? { ...t, ...updated } : t),
     }));
   },
 
   deleteEntityType: async (id) => {
-    await db.entityTypes.delete(id);
-    set(state => ({
-      entityTypes: state.entityTypes.filter(t => t.id !== id),
-    }));
+    await supabase.from('entity_types').delete().eq('id', id);
+    set(state => ({ entityTypes: state.entityTypes.filter(t => t.id !== id) }));
   },
 
   addProperty: async (typeId, name, type) => {
@@ -80,11 +85,9 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
     };
     const properties = [...entityType.properties, newProp];
     const updatedAt = Date.now();
-    await db.entityTypes.update(typeId, { properties, updatedAt });
+    await supabase.from('entity_types').update({ properties, updatedAt }).eq('id', typeId);
     set(state => ({
-      entityTypes: state.entityTypes.map(t =>
-        t.id === typeId ? { ...t, properties, updatedAt } : t
-      ),
+      entityTypes: state.entityTypes.map(t => t.id === typeId ? { ...t, properties, updatedAt } : t),
     }));
     return newProp;
   },
@@ -92,15 +95,11 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
   updateProperty: async (typeId, propId, data) => {
     const entityType = get().entityTypes.find(t => t.id === typeId);
     if (!entityType) return;
-    const properties = entityType.properties.map(p =>
-      p.id === propId ? { ...p, ...data } : p
-    );
+    const properties = entityType.properties.map(p => p.id === propId ? { ...p, ...data } : p);
     const updatedAt = Date.now();
-    await db.entityTypes.update(typeId, { properties, updatedAt });
+    await supabase.from('entity_types').update({ properties, updatedAt }).eq('id', typeId);
     set(state => ({
-      entityTypes: state.entityTypes.map(t =>
-        t.id === typeId ? { ...t, properties, updatedAt } : t
-      ),
+      entityTypes: state.entityTypes.map(t => t.id === typeId ? { ...t, properties, updatedAt } : t),
     }));
   },
 
@@ -109,11 +108,9 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
     if (!entityType) return;
     const properties = entityType.properties.filter(p => p.id !== propId);
     const updatedAt = Date.now();
-    await db.entityTypes.update(typeId, { properties, updatedAt });
+    await supabase.from('entity_types').update({ properties, updatedAt }).eq('id', typeId);
     set(state => ({
-      entityTypes: state.entityTypes.map(t =>
-        t.id === typeId ? { ...t, properties, updatedAt } : t
-      ),
+      entityTypes: state.entityTypes.map(t => t.id === typeId ? { ...t, properties, updatedAt } : t),
     }));
   },
 
@@ -122,17 +119,12 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
     if (!entityType) return;
     const propMap = new Map(entityType.properties.map(p => [p.id, p]));
     const properties = orderedIds
-      .map((id, idx) => {
-        const prop = propMap.get(id);
-        return prop ? { ...prop, order: idx } : null;
-      })
+      .map((id, idx) => { const prop = propMap.get(id); return prop ? { ...prop, order: idx } : null; })
       .filter(Boolean) as PropertyDefinition[];
     const updatedAt = Date.now();
-    await db.entityTypes.update(typeId, { properties, updatedAt });
+    await supabase.from('entity_types').update({ properties, updatedAt }).eq('id', typeId);
     set(state => ({
-      entityTypes: state.entityTypes.map(t =>
-        t.id === typeId ? { ...t, properties, updatedAt } : t
-      ),
+      entityTypes: state.entityTypes.map(t => t.id === typeId ? { ...t, properties, updatedAt } : t),
     }));
   },
 
@@ -140,5 +132,4 @@ export const useEntityTypeStore = create<EntityTypeState>((set, get) => ({
   getEntityTypeBySlug: (slug) => get().entityTypes.find(t => t.slug === slug),
 }));
 
-// Suppress unused import warning
 export type { SelectOption };

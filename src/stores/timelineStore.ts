@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db } from '../db';
+import { supabase, getUserId } from '../lib/supabase';
 import { uid, compareGolarionDates } from '../lib/utils';
 import type { TimelineEvent, GolarionDate, EventCategory } from '../types';
 
@@ -21,11 +21,14 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
-    const events = await db.timelineEvents.orderBy('createdAt').toArray();
+    const userId = getUserId();
+    const { data } = await supabase.from('timeline_events').select('*').eq('user_id', userId).order('createdAt', { ascending: true });
+    const events = (data ?? []).map(({ user_id: _u, ...e }: any) => e as TimelineEvent);
     set({ events, loading: false });
   },
 
   createEvent: async (data) => {
+    const userId = getUserId();
     const newEvent: TimelineEvent = {
       id: uid(),
       title: data.title,
@@ -40,34 +43,25 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    await db.timelineEvents.add(newEvent);
+    await supabase.from('timeline_events').insert({ ...newEvent, user_id: userId });
     set(state => ({ events: [...state.events, newEvent] }));
     return newEvent;
   },
 
   updateEvent: async (id, data) => {
     const updated = { ...data, updatedAt: Date.now() };
-    await db.timelineEvents.update(id, updated);
-    set(state => ({
-      events: state.events.map(e => e.id === id ? { ...e, ...updated } : e),
-    }));
+    await supabase.from('timeline_events').update(updated).eq('id', id);
+    set(state => ({ events: state.events.map(e => e.id === id ? { ...e, ...updated } : e) }));
   },
 
   deleteEvent: async (id) => {
-    await db.timelineEvents.delete(id);
+    await supabase.from('timeline_events').delete().eq('id', id);
     set(state => ({ events: state.events.filter(e => e.id !== id) }));
   },
 
   getEvent: (id) => get().events.find(e => e.id === id),
-
-  getSortedEvents: () => {
-    return [...get().events].sort((a, b) => compareGolarionDates(a.date, b.date));
-  },
-
-  getEventsByEntity: (entityId) => {
-    return get().events.filter(e => e.linkedEntityIds.includes(entityId));
-  },
+  getSortedEvents: () => [...get().events].sort((a, b) => compareGolarionDates(a.date, b.date)),
+  getEventsByEntity: (entityId) => get().events.filter(e => e.linkedEntityIds.includes(entityId)),
 }));
 
-// Suppress unused import warning
 export type { EventCategory };
