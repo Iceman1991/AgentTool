@@ -1,70 +1,70 @@
 import { useState, useCallback } from 'react';
 import { RefreshCw, Copy, Check } from 'lucide-react';
 
-// ── Syllable banks ──────────────────────────────────────────────────────────
+// ── Syllable banks (purely phonetic fantasy) ─────────────────────────────────
 
 const banks = {
   humanMale: {
-    pre: ['Al', 'Bren', 'Car', 'Der', 'Ed', 'Fal', 'Gar', 'Hel', 'Im', 'Jak', 'Kel', 'Lor', 'Mar', 'Nor', 'Os', 'Per', 'Ran', 'Ser', 'Tor', 'Ul', 'Val', 'War', 'Xan', 'Yr', 'Zar'],
+    pre: ['Al', 'Bren', 'Cael', 'Dar', 'Edh', 'Fal', 'Gar', 'Hael', 'Ith', 'Jor', 'Kel', 'Lor', 'Mar', 'Nor', 'Orath', 'Per', 'Ran', 'Ser', 'Tor', 'Ulv', 'Val', 'Wyr', 'Xan', 'Yr', 'Zar'],
     mid: ['a', 'an', 'ar', 'en', 'er', 'ian', 'in', 'on', 'or', 'us'],
-    suf: ['ald', 'an', 'as', 'ath', 'en', 'ias', 'in', 'ion', 'is', 'ius', 'oc', 'on', 'or', 'us', 'yn'],
+    suf: ['ald', 'ath', 'dor', 'en', 'ias', 'ion', 'ius', 'och', 'ond', 'or', 'rath', 'thas', 'tor', 'us', 'yn'],
   },
   humanFemale: {
-    pre: ['Aer', 'Bel', 'Cal', 'Del', 'El', 'Fae', 'Ger', 'Hel', 'Il', 'Jael', 'Kel', 'Lir', 'Mar', 'Nar', 'Ori', 'Phe', 'Ros', 'Sel', 'Thal', 'Ul', 'Val', 'Wren', 'Xyl', 'Yr', 'Zel'],
+    pre: ['Aer', 'Bel', 'Cael', 'Del', 'Elh', 'Fael', 'Gyr', 'Hel', 'Ilh', 'Jael', 'Kel', 'Lir', 'Mael', 'Nar', 'Ori', 'Phel', 'Rael', 'Sel', 'Thal', 'Ulh', 'Val', 'Wren', 'Xyl', 'Yr', 'Zel'],
     mid: ['a', 'ae', 'an', 'ar', 'el', 'en', 'er', 'ia', 'ie', 'ir', 'or'],
-    suf: ['a', 'ae', 'ael', 'ah', 'an', 'ane', 'ara', 'ath', 'ela', 'ene', 'ia', 'iel', 'ina', 'ine', 'ora', 'wyn'],
+    suf: ['a', 'ael', 'ahra', 'ane', 'ara', 'ath', 'ela', 'ene', 'ia', 'iel', 'ina', 'inel', 'ora', 'wynn', 'yth'],
   },
   elf: {
-    pre: ['Aer', 'Ael', 'Cal', 'Cael', 'El', 'Eld', 'Fael', 'Gal', 'Ith', 'Lir', 'Mal', 'Mir', 'Nal', 'Nil', 'Phal', 'Rael', 'Sil', 'Tal', 'Thal', 'Val', 'Vel', 'Xael', 'Ynd', 'Zel'],
+    pre: ['Aer', 'Ael', 'Cael', 'Caer', 'Ehl', 'Eld', 'Fael', 'Gal', 'Ith', 'Lir', 'Mael', 'Mir', 'Nael', 'Nil', 'Phal', 'Rael', 'Sil', 'Tael', 'Thal', 'Val', 'Vel', 'Xael', 'Ynd', 'Zel'],
     mid: ['a', 'ae', 'ael', 'an', 'ar', 'el', 'en', 'iel', 'il', 'ir', 'or', 'yl'],
-    suf: ['ael', 'aer', 'an', 'ath', 'eil', 'el', 'en', 'ene', 'iel', 'il', 'ior', 'ir', 'ith', 'or', 'ril', 'thal', 'yn'],
+    suf: ['ael', 'aer', 'anor', 'ath', 'eil', 'elar', 'ene', 'iel', 'ilor', 'ith', 'oril', 'rath', 'ril', 'thal', 'yn'],
   },
   dwarf: {
-    pre: ['Bor', 'Brom', 'Dag', 'Drak', 'Dur', 'Erd', 'Fal', 'Gim', 'Glar', 'Grun', 'Kor', 'Krag', 'Lok', 'Mog', 'Nor', 'Orf', 'Rad', 'Rak', 'Thag', 'Thor', 'Uld', 'Ulf', 'Vor', 'Wald'],
+    pre: ['Bor', 'Brom', 'Dag', 'Drak', 'Dur', 'Erd', 'Fal', 'Gim', 'Glar', 'Gruk', 'Kor', 'Krag', 'Lok', 'Mog', 'Nor', 'Orf', 'Rad', 'Rak', 'Thag', 'Thor', 'Uld', 'Ulf', 'Vor', 'Wald'],
     mid: ['a', 'ak', 'al', 'ar', 'im', 'in', 'ok', 'or', 'ul', 'un'],
-    suf: ['ak', 'ar', 'din', 'dur', 'er', 'id', 'im', 'in', 'kin', 'li', 'lin', 'mir', 'ok', 'or', 'ul', 'un'],
+    suf: ['akir', 'amir', 'andin', 'ardur', 'erin', 'idur', 'ikin', 'imir', 'okhal', 'orkil', 'ulin', 'undur'],
   },
   halfling: {
-    pre: ['Bar', 'Bil', 'Cot', 'Del', 'Elm', 'Fin', 'Gil', 'Hal', 'Ivy', 'Jak', 'Kel', 'Lob', 'Mel', 'Nib', 'Ob', 'Pad', 'Pip', 'Rob', 'Sam', 'Tab', 'Tom', 'Wil'],
+    pre: ['Bil', 'Cot', 'Del', 'Elm', 'Fin', 'Gil', 'Hal', 'Ivyn', 'Jok', 'Kel', 'Lob', 'Mel', 'Nib', 'Ob', 'Pad', 'Pip', 'Rob', 'Saf', 'Tab', 'Tom', 'Wil'],
     mid: ['a', 'an', 'bo', 'do', 'ey', 'in', 'lo', 'o', 'ro', 'to'],
-    suf: ['ald', 'ble', 'bo', 'do', 'foot', 'kin', 'le', 'lin', 'lo', 'lock', 'lop', 'ny', 'pin', 'shire', 'son', 'wick', 'wyn'],
+    suf: ['aldin', 'ambo', 'ando', 'ashin', 'awyn', 'ekin', 'elin', 'illo', 'imbo', 'inwyn', 'opin', 'orpin'],
   },
   gnome: {
-    pre: ['Alz', 'Bim', 'Boz', 'Dim', 'Fiz', 'Giz', 'Nim', 'Pip', 'Pok', 'Qu', 'Rux', 'Siz', 'Snoz', 'Tiz', 'Tock', 'Wim', 'Zap', 'Zib', 'Zim', 'Zip'],
+    pre: ['Alz', 'Bim', 'Boz', 'Dim', 'Fiz', 'Giz', 'Nim', 'Pip', 'Pok', 'Quz', 'Rux', 'Siz', 'Snoz', 'Tiz', 'Tock', 'Wim', 'Zap', 'Zib', 'Zim', 'Zip'],
     mid: ['a', 'el', 'er', 'il', 'le', 'ock', 'ot', 'ri', 'ro', 'ul'],
-    suf: ['bix', 'crank', 'fink', 'fizzle', 'gear', 'grick', 'mix', 'nik', 'nix', 'pock', 'prick', 'rix', 'spark', 'tix', 'wick', 'wix', 'zap'],
+    suf: ['abix', 'anik', 'elrix', 'erix', 'ilnix', 'ipock', 'irix', 'olbix', 'olvix', 'orix', 'ulnix', 'upix'],
   },
   orc: {
-    pre: ['Ag', 'Bog', 'Brug', 'Drak', 'Garg', 'Gor', 'Grak', 'Grom', 'Grul', 'Grum', 'Krag', 'Krul', 'Mag', 'Mog', 'Morg', 'Rok', 'Rug', 'Thak', 'Throk', 'Ug', 'Ugrak', 'Vrak', 'Zog'],
+    pre: ['Ag', 'Bog', 'Brug', 'Drak', 'Garg', 'Gor', 'Grak', 'Grom', 'Grul', 'Grum', 'Krag', 'Krul', 'Mag', 'Mog', 'Morg', 'Rok', 'Rug', 'Thak', 'Throk', 'Ug', 'Vrak', 'Zog'],
     mid: ['a', 'ag', 'ak', 'ar', 'og', 'ok', 'or', 'ug', 'uk', 'ur'],
-    suf: ['ak', 'ash', 'dur', 'gar', 'gash', 'grak', 'grash', 'gut', 'kar', 'kash', 'mak', 'nak', 'nok', 'rak', 'ruk', 'slash', 'smash', 'tusk'],
+    suf: ['akur', 'ashnak', 'dur', 'garak', 'grakh', 'guthar', 'karag', 'kharnak', 'makur', 'nakar', 'nakur', 'rakh', 'rukar', 'tharak', 'turak'],
   },
 };
 
 const locationBanks = {
   city: {
-    pre: ['Alder', 'Amber', 'Ash', 'Black', 'Bright', 'Crest', 'Crown', 'Dark', 'Dawn', 'Dragon', 'Dusk', 'East', 'Elder', 'Far', 'Gold', 'Grey', 'High', 'Iron', 'Ivory', 'Light', 'Loch', 'Long', 'Moon', 'New', 'Night', 'North', 'Oak', 'Old', 'Red', 'River', 'Rock', 'Rose', 'Silver', 'Star', 'Stone', 'Storm', 'Sun', 'Swift', 'Thorn', 'White', 'Wind'],
-    suf: ['burg', 'castle', 'dale', 'den', 'ford', 'gate', 'grove', 'hall', 'harbor', 'haven', 'helm', 'hold', 'home', 'keep', 'mark', 'mere', 'mill', 'moor', 'mouth', 'pass', 'peak', 'port', 'reach', 'ridge', 'rock', 'shore', 'stead', 'thorpe', 'ton', 'tower', 'vale', 'ville', 'ward', 'watch', 'well', 'wick', 'worth'],
+    pre: ['Aeld', 'Aer', 'Alth', 'Bael', 'Caer', 'Chal', 'Dal', 'Dor', 'Eld', 'Elth', 'Fal', 'Gar', 'Ith', 'Kal', 'Lor', 'Mal', 'Mor', 'Nael', 'Nor', 'Oth', 'Pal', 'Ran', 'Sel', 'Tal', 'Thor', 'Val', 'Vel', 'Xal', 'Zan', 'Zor'],
+    suf: ['ath', 'dael', 'dar', 'dor', 'eth', 'gar', 'gath', 'heim', 'ion', 'ith', 'mar', 'mor', 'nar', 'nia', 'nor', 'rath', 'rim', 'ron', 'roth', 'seth', 'shal', 'thal', 'than', 'tor', 'tyr', 'ul', 'val', 'var', 'vel', 'wyn'],
   },
   village: {
-    pre: ['Briar', 'Brook', 'Clear', 'Clover', 'Croft', 'Dell', 'Down', 'Drift', 'Elm', 'Fern', 'Glen', 'Green', 'Hay', 'Heath', 'Hollow', 'Holt', 'Knoll', 'Lichen', 'Linden', 'Maple', 'Marsh', 'Meadow', 'Mist', 'Moss', 'Nettle', 'Pebble', 'Pine', 'Reed', 'Rush', 'Sedge', 'Shade', 'Twig', 'Willow', 'Wren'],
-    suf: ['barrow', 'bottom', 'bridge', 'brook', 'chapel', 'cross', 'crossing', 'dell', 'end', 'field', 'fold', 'ford', 'green', 'hamlet', 'hill', 'hollow', 'hurst', 'lea', 'mill', 'nook', 'stead', 'thorpe', 'ton', 'vale', 'well', 'wood'],
+    pre: ['Aeln', 'Bael', 'Calh', 'Dael', 'Elh', 'Faer', 'Geln', 'Haer', 'Iln', 'Jael', 'Kaln', 'Lael', 'Meln', 'Nael', 'Oln', 'Pael', 'Raln', 'Seln', 'Tael', 'Uln', 'Valn', 'Weln', 'Yaln', 'Zaln'],
+    suf: ['abar', 'adel', 'ahar', 'alar', 'amar', 'anar', 'aral', 'aran', 'arel', 'aron', 'athar', 'avar', 'edel', 'ehar', 'emar', 'enal', 'enar', 'eran', 'erel', 'eron'],
   },
   mountain: {
-    pre: ['Ash', 'Black', 'Blood', 'Bone', 'Cold', 'Cracked', 'Crimson', 'Dark', 'Dead', 'Drake', 'Dusk', 'Eagle', 'Ember', 'Frost', 'Giant', 'Grim', 'Howling', 'Iron', 'Jagged', 'Lost', 'Mist', 'Night', 'Raven', 'Scorched', 'Shadow', 'Shattered', 'Silent', 'Skull', 'Snow', 'Sorrow', 'Stone', 'Storm', 'Thunder', 'Titan', 'Veiled', 'Wolf'],
-    suf: [' Crag', ' Fangs', ' Horns', ' Peak', ' Pinnacle', ' Ridge', ' Spire', ' Summit', ' Teeth', ' Throne', "'s Back", "'s Crown", "'s Fang", "'s Maw", "'s Spine", "'s Tooth"],
+    pre: ['Agr', 'Brak', 'Drak', 'Durg', 'Frak', 'Grak', 'Grul', 'Grum', 'Ithk', 'Karg', 'Krak', 'Krul', 'Morg', 'Norg', 'Rak', 'Rok', 'Thrag', 'Thrak', 'Ulk', 'Urgr', 'Vrak', 'Zrak'],
+    suf: ['adan', 'aghor', 'akhar', 'aldar', 'amar', 'amar', 'andar', 'andur', 'arag', 'arakh', 'ardur', 'arok', 'arug', 'athar', 'atur', 'azur', 'odar', 'odur', 'okhar', 'oldar', 'ondur', 'orak'],
   },
   river: {
-    pre: ['Amber', 'Black', 'Clear', 'Cold', 'Crystal', 'Dark', 'Deep', 'Ember', 'Frost', 'Gold', 'Grey', 'Hollow', 'Iron', 'Jade', 'Mist', 'Moon', 'Muddy', 'Night', 'Red', 'Rush', 'Silver', 'Sky', 'Slow', 'Still', 'Storm', 'Swift', 'Teal', 'Twilight', 'White', 'Wild'],
-    suf: ['beck', 'bourne', 'brook', 'burn', 'creek', 'current', 'drift', 'fall', 'flow', 'ford', 'pour', 'run', 'rush', 'spill', 'strand', 'stream', 'surge', 'tide', 'trickle', 'wash', 'water', 'way'],
+    pre: ['Aeld', 'Ael', 'Caer', 'Cael', 'Dal', 'Eld', 'Elh', 'Fael', 'Gael', 'Ith', 'Lael', 'Lir', 'Mael', 'Nil', 'Oel', 'Pael', 'Rael', 'Sel', 'Sil', 'Tael', 'Vel', 'Vael', 'Xael', 'Zael'],
+    suf: ['adel', 'aer', 'ahar', 'aiel', 'aith', 'anel', 'aner', 'anil', 'anor', 'arath', 'areth', 'arith', 'aryn', 'athal', 'athel', 'avel', 'aven', 'avir', 'awyn', 'edel', 'eiel', 'eith'],
   },
   forest: {
-    pre: ['Ancient', 'Ash', 'Black', 'Bone', 'Cursed', 'Dark', 'Dead', 'Deep', 'Dream', 'Dusk', 'Eldritch', 'Emerald', 'Eternal', 'Fading', 'Forgotten', 'Ghost', 'Gloam', 'Green', 'Hollow', 'Hushed', 'Jade', 'Mist', 'Moon', 'Moss', 'Murk', 'Night', 'Old', 'Pale', 'Shadow', 'Silent', 'Sleeping', 'Thorn', 'Twilight', 'Umbral', 'Verdant', 'Whispering', 'Wild'],
-    suf: [' Canopy', ' Expanse', ' Grove', ' Hollows', ' Shades', ' Stand', ' Tangle', ' Thicket', ' Tangle', ' Veil', ' Weald', ' Wood', 'en Depths', 'wood'],
+    pre: ['Aeld', 'Ael', 'Caer', 'Cael', 'Dael', 'Eld', 'Elh', 'Fael', 'Gael', 'Ith', 'Lael', 'Lir', 'Mael', 'Nael', 'Oel', 'Pael', 'Rael', 'Sel', 'Sil', 'Tael', 'Vel', 'Vael', 'Xael', 'Zael'],
+    suf: ['adorn', 'aelor', 'aewyn', 'agorn', 'alath', 'aleth', 'alith', 'alorn', 'alwyn', 'aneth', 'anorn', 'anwyn', 'areth', 'arith', 'arorn', 'arwyn', 'athal', 'athel', 'athorn', 'avel', 'aveth', 'avorn', 'avwyn'],
   },
   dungeon: {
-    pre: ['Ashen', 'Bitter', 'Black', 'Blighted', 'Blood', 'Bone', 'Broken', 'Corrupted', 'Cursed', 'Dark', 'Dead', 'Dread', 'Dreaded', 'Dying', 'Eternal', 'Fell', 'Forgotten', 'Forsaken', 'Grim', 'Hollow', 'Haunted', 'Iron', 'Lost', 'Malign', 'Necrotic', 'Old', 'Pit', 'Rotten', 'Ruined', 'Shattered', 'Shadow', 'Shunned', 'Silent', 'Skull', 'Sunken', 'Sunless', 'Tainted', 'Undying', 'Vile'],
-    suf: [' Cairn', ' Catacombs', ' Caverns', ' Chambers', ' Citadel', ' Crypt', ' Depths', ' Descent', ' Domain', ' Fortress', ' Halls', ' Keep', ' Labyrinth', ' Lair', ' Maw', ' Ossuary', ' Pits', ' Ruins', ' Sanctum', ' Sepulcher', ' Tomb', ' Tower', ' Vault', ' Warrens'],
+    pre: ['Agr', 'Brak', 'Drak', 'Durg', 'Frak', 'Grak', 'Grul', 'Grum', 'Ithk', 'Karg', 'Krak', 'Krul', 'Morg', 'Norg', 'Rak', 'Rok', 'Thrag', 'Thrak', 'Ulk', 'Urgr', 'Vrak', 'Zrak'],
+    suf: ['adath', 'agath', 'akhar', 'alath', 'amoth', 'anath', 'arath', 'aroth', 'athar', 'athor', 'azath', 'azoth', 'odath', 'ogath', 'okhar', 'olath', 'omoth', 'onath', 'orath', 'oroth', 'othar', 'othor'],
   },
 };
 
@@ -78,21 +78,26 @@ function pick<T>(arr: T[]): T {
 function generateNpcName(category: NpcCategory): string {
   const b = banks[category];
   const roll = Math.random();
-  if (roll < 0.4) {
-    // pre + suf
+  if (roll < 0.45) {
     return pick(b.pre) + pick(b.suf);
-  } else if (roll < 0.7) {
-    // pre + mid + suf
+  } else if (roll < 0.75) {
     return pick(b.pre) + pick(b.mid) + pick(b.suf);
   } else {
-    // pre + suf (different)
     return pick(b.pre) + pick(b.suf);
   }
 }
 
 function generateLocationName(category: LocCategory): string {
   const b = locationBanks[category];
-  return pick(b.pre) + pick(b.suf);
+  const roll = Math.random();
+  if (roll < 0.6) {
+    return pick(b.pre) + pick(b.suf);
+  } else {
+    // two-part: pre1 + pre2 (shortened) + suf
+    const p1 = pick(b.pre);
+    const p2 = pick(b.pre).toLowerCase();
+    return p1 + '\'' + p2 + pick(b.suf);
+  }
 }
 
 // ── Label maps ───────────────────────────────────────────────────────────────
