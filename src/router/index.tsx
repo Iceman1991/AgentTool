@@ -13,6 +13,7 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { NotePagesListPage } from '../pages/NotePagesListPage';
 import { NotePageDetailPage } from '../pages/NotePageDetailPage';
 import { TrashPage } from '../pages/TrashPage';
+import { AdminPage } from '../pages/AdminPage';
 
 export const router = createBrowserRouter([
   {
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: 'pages/:id', element: <NotePageDetailPage /> },
       { path: 'trash', element: <TrashPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'admin', element: <AdminPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

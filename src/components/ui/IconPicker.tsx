@@ -39,9 +39,9 @@ export function IconPicker({ value, onChange, label }: IconPickerProps) {
         placeholder="Icon suchen..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="bg-gray-900 border border-gray-600 text-gray-100 rounded px-2 py-1 text-sm"
+        className="bg-gray-800 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-500"
       />
-      <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto p-1">
+      <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto p-1 bg-gray-800/50 rounded-lg border border-gray-700/50">
         {filtered.map(name => {
           const Icon = (LucideIcons as unknown as Record<string, LucideIconComponent>)[name];
           if (!Icon) return null;
@@ -52,7 +52,7 @@ export function IconPicker({ value, onChange, label }: IconPickerProps) {
               title={name}
               onClick={() => onChange(name)}
               className={cn(
-                'p-2 rounded transition-colors',
+                'flex items-center justify-center p-2 rounded-lg transition-colors aspect-square',
                 value === name
                   ? 'bg-accent-500 text-white'
                   : 'hover:bg-gray-700 text-gray-400 hover:text-gray-200',
@@ -62,6 +62,9 @@ export function IconPicker({ value, onChange, label }: IconPickerProps) {
             </button>
           );
         })}
+        {filtered.length === 0 && (
+          <p className="col-span-8 text-center text-gray-600 text-xs py-4">Kein Icon gefunden</p>
+        )}
       </div>
     </div>
   );

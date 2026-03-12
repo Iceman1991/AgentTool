@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Network, TreePine, Clock, Settings,
   Plus, ChevronLeft, ChevronRight, Circle, FileText, ChevronDown, Trash2,
-  Briefcase, Check, LogOut,
+  Briefcase, Check, LogOut, Pencil, X, ShieldAlert,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
@@ -153,7 +153,7 @@ export function Sidebar() {
   const timelines = useTimelineMetaStore(s => s.timelines);
   const { sidebarCollapsed, toggleSidebar, openModal, closeMobileSidebar } = useUIStore();
   const { signOut } = useAuthStore();
-  const { workspaces, currentWorkspaceId, switchWorkspace, createWorkspace } = useWorkspaceStore();
+  const { workspaces, currentWorkspaceId, switchWorkspace, createWorkspace, updateWorkspace, deleteWorkspace } = useWorkspaceStore();
   const loadEntityTypes = useEntityTypeStore(s => s.load);
   const loadEntities = useEntityStore(s => s.load);
   const loadNotePages = useNotePageStore(s => s.load);
@@ -161,6 +161,8 @@ export function Sidebar() {
   const [wsMenuOpen, setWsMenuOpen] = useState(false);
   const [addingWs, setAddingWs] = useState(false);
   const [newWsName, setNewWsName] = useState('');
+  const [editingWsId, setEditingWsId] = useState<string | null>(null);
+  const [editingWsName, setEditingWsName] = useState('');
 
   const currentWs = workspaces.find(w => w.id === currentWorkspaceId);
 
@@ -217,17 +219,65 @@ export function Sidebar() {
             {wsMenuOpen && (
               <div className="absolute left-2 right-2 top-full mt-1 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 py-1">
                 {workspaces.map(ws => (
-                  <button
-                    key={ws.id}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-800 text-left"
-                    onClick={() => handleSwitchWorkspace(ws.id)}
-                  >
-                    <Briefcase size={12} className="text-gray-500 flex-shrink-0" />
-                    <span className={cn('flex-1 truncate', ws.id === currentWorkspaceId ? 'text-accent-400' : 'text-gray-300')}>
-                      {ws.name}
-                    </span>
-                    {ws.id === currentWorkspaceId && <Check size={11} className="text-accent-400 flex-shrink-0" />}
-                  </button>
+                  <div key={ws.id} className="group flex items-center gap-1 px-2 py-0.5">
+                    {editingWsId === ws.id ? (
+                      <div className="flex items-center gap-1 flex-1 px-1">
+                        <input
+                          autoFocus
+                          value={editingWsName}
+                          onChange={e => setEditingWsName(e.target.value)}
+                          onKeyDown={async e => {
+                            if (e.key === 'Enter' && editingWsName.trim()) {
+                              await updateWorkspace(ws.id, { name: editingWsName.trim() });
+                              setEditingWsId(null);
+                            }
+                            if (e.key === 'Escape') setEditingWsId(null);
+                          }}
+                          className="flex-1 bg-gray-800 border border-accent-500/50 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none"
+                        />
+                        <button
+                          className="p-1 rounded bg-accent-500 text-white"
+                          onClick={async () => {
+                            if (editingWsName.trim()) {
+                              await updateWorkspace(ws.id, { name: editingWsName.trim() });
+                            }
+                            setEditingWsId(null);
+                          }}
+                        ><Check size={11} /></button>
+                        <button className="p-1 rounded text-gray-500 hover:text-gray-300" onClick={() => setEditingWsId(null)}><X size={11} /></button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          className="flex items-center gap-2 flex-1 py-1.5 text-sm text-left rounded-lg px-1 hover:bg-gray-800"
+                          onClick={() => handleSwitchWorkspace(ws.id)}
+                        >
+                          <Briefcase size={12} className="text-gray-500 flex-shrink-0" />
+                          <span className={cn('flex-1 truncate', ws.id === currentWorkspaceId ? 'text-accent-400' : 'text-gray-300')}>
+                            {ws.name}
+                          </span>
+                          {ws.id === currentWorkspaceId && <Check size={11} className="text-accent-400 flex-shrink-0" />}
+                        </button>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-gray-600 hover:text-gray-300 hover:bg-gray-700 flex-shrink-0"
+                          title="Umbenennen"
+                          onClick={e => { e.stopPropagation(); setEditingWsId(ws.id); setEditingWsName(ws.name); }}
+                        ><Pencil size={11} /></button>
+                        {ws.id !== 'default-workspace' && (
+                          <button
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-gray-600 hover:text-red-400 hover:bg-gray-700 flex-shrink-0"
+                            title="Löschen"
+                            onClick={async e => {
+                              e.stopPropagation();
+                              if (confirm(`Workspace "${ws.name}" wirklich löschen? Alle Inhalte werden in Standard verschoben.`)) {
+                                await deleteWorkspace(ws.id);
+                              }
+                            }}
+                          ><Trash2 size={11} /></button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 ))}
                 <div className="border-t border-gray-700/50 my-1" />
                 {addingWs ? (
@@ -411,12 +461,16 @@ export function Sidebar() {
       <div className="p-2 border-t border-white/[0.06] flex flex-col gap-0.5">
         <NavItem to="/trash" icon={<Trash2 size={15} />} label="Papierkorb" collapsed={sidebarCollapsed} />
         <NavItem to="/settings" icon={<Settings size={15} />} label="Einstellungen" collapsed={sidebarCollapsed} />
+        <NavItem to="/admin" icon={<ShieldAlert size={15} />} label="Admin" collapsed={sidebarCollapsed} />
         <button
           onClick={() => signOut()}
           title="Abmelden"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-800/60 hover:text-red-400 transition-colors w-full ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
+          className={cn(
+            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-800/60 hover:text-red-400',
+            sidebarCollapsed && 'justify-center px-2',
+          )}
         >
-          <LogOut size={15} className="flex-shrink-0 opacity-80" />
+          <span className="flex-shrink-0 opacity-80"><LogOut size={15} /></span>
           {!sidebarCollapsed && <span className="truncate flex-1">Abmelden</span>}
         </button>
         <button
