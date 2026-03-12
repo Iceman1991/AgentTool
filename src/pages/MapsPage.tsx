@@ -889,6 +889,7 @@ export function MapsPage() {
   const [newMapImage, setNewMapImage] = useState<string | null>(null);
   const [newMapDesc, setNewMapDesc] = useState('');
   const [savingMap, setSavingMap] = useState(false);
+  const [saveMapError, setSaveMapError] = useState<string | null>(null);
 
   // Pin form state
   const [pendingPin, setPendingPin] = useState<PendingPin | null>(null);
@@ -917,6 +918,7 @@ export function MapsPage() {
   const handleAddMap = async () => {
     if (!newMapName.trim() || !newMapImage) return;
     setSavingMap(true);
+    setSaveMapError(null);
     try {
       const m = await createMap({ name: newMapName.trim(), imageUrl: newMapImage, description: newMapDesc });
       setSelectedMapId(m.id);
@@ -924,6 +926,8 @@ export function MapsPage() {
       setNewMapName('');
       setNewMapImage(null);
       setNewMapDesc('');
+    } catch (err) {
+      setSaveMapError(err instanceof Error ? err.message : 'Karte konnte nicht gespeichert werden.');
     } finally {
       setSavingMap(false);
     }
@@ -1273,6 +1277,9 @@ export function MapsPage() {
                   {savingMap ? 'Speichern...' : 'Erstellen'}
                 </button>
               </div>
+              {saveMapError && (
+                <div style={{ color: '#E05252', fontSize: 11, marginTop: 4 }}>{saveMapError}</div>
+              )}
             </div>
           )}
         </div>

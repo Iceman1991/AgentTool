@@ -4,6 +4,11 @@ import { uid } from '../lib/utils';
 import type { CampaignMap, MapPin, MapPinType } from '../types';
 import { useWorkspaceStore } from './workspaceStore';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function toDbWsId(wsId: string | null | undefined): string | null {
+  return wsId && UUID_RE.test(wsId) ? wsId : null;
+}
+
 interface MapState {
   maps: CampaignMap[];
   pins: MapPin[];
@@ -106,16 +111,17 @@ export const useMapStore = create<MapState>((set, get) => ({
       createdAt: now,
       updatedAt: now,
     };
-    await supabase.from('campaign_maps').insert({
+    const { error } = await supabase.from('campaign_maps').insert({
       id: newMap.id,
       user_id: userId,
-      workspace_id: newMap.workspaceId,
+      workspace_id: toDbWsId(newMap.workspaceId),
       name: newMap.name,
       description: newMap.description,
       image_url: newMap.imageUrl,
       created_at: newMap.createdAt,
       updated_at: newMap.updatedAt,
     });
+    if (error) throw new Error(error.message);
     set(state => ({ maps: [...state.maps, newMap] }));
     return newMap;
   },
@@ -163,7 +169,7 @@ export const useMapStore = create<MapState>((set, get) => ({
     await supabase.from('map_pins').insert({
       id: newPin.id,
       user_id: userId,
-      workspace_id: newPin.workspaceId,
+      workspace_id: toDbWsId(newPin.workspaceId),
       map_id: newPin.mapId,
       x: newPin.x,
       y: newPin.y,
