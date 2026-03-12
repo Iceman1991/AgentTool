@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Network, TreePine, Clock, Settings,
   Plus, ChevronLeft, ChevronRight, Circle, FileText, ChevronDown, Trash2,
-  Briefcase, Check,
+  Briefcase, Check, LogOut,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
@@ -16,6 +16,7 @@ import { useTimelineMetaStore } from '../../stores/timelineMetaStore';
 import { useEntityFolderStore } from '../../stores/entityFolderStore';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../lib/utils';
 import type { EntityType, NotePage } from '../../types';
 
@@ -151,6 +152,7 @@ export function Sidebar() {
   const familyTrees = useFamilyTreeStore(s => s.familyTrees);
   const timelines = useTimelineMetaStore(s => s.timelines);
   const { sidebarCollapsed, toggleSidebar, openModal, closeMobileSidebar } = useUIStore();
+  const { signOut } = useAuthStore();
   const { workspaces, currentWorkspaceId, switchWorkspace, createWorkspace } = useWorkspaceStore();
   const loadEntityTypes = useEntityTypeStore(s => s.load);
   const loadEntities = useEntityStore(s => s.load);
@@ -409,6 +411,14 @@ export function Sidebar() {
       <div className="p-2 border-t border-white/[0.06] flex flex-col gap-0.5">
         <NavItem to="/trash" icon={<Trash2 size={15} />} label="Papierkorb" collapsed={sidebarCollapsed} />
         <NavItem to="/settings" icon={<Settings size={15} />} label="Einstellungen" collapsed={sidebarCollapsed} />
+        <button
+          onClick={() => signOut()}
+          title="Abmelden"
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-800/60 hover:text-red-400 transition-colors w-full ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
+        >
+          <LogOut size={15} className="flex-shrink-0 opacity-80" />
+          {!sidebarCollapsed && <span className="truncate flex-1">Abmelden</span>}
+        </button>
         <button
           onClick={toggleSidebar}
           className="flex items-center justify-center w-full py-1.5 text-gray-600 hover:text-gray-400 rounded-lg hover:bg-gray-800/60"
