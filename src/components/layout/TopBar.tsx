@@ -34,6 +34,7 @@ function Breadcrumb() {
     if (parts[0] === 'family-tree') return [{ label: 'Dashboard', href: '/' }, { label: 'Stammbaum', href: null }];
     if (parts[0] === 'timeline') return [{ label: 'Dashboard', href: '/' }, { label: 'Zeitleiste', href: null }];
     if (parts[0] === 'settings') return [{ label: 'Dashboard', href: '/' }, { label: 'Einstellungen', href: null }];
+    if (parts[0] === 'name-generator') return [{ label: 'Dashboard', href: '/' }, { label: 'Namensgenerator', href: null }];
     return [{ label: 'Dashboard', href: '/' }];
   };
 

@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Network, TreePine, Clock, Settings,
   Plus, ChevronLeft, ChevronRight, Circle, FileText, ChevronDown, Trash2,
-  Briefcase, Check, LogOut, Pencil, X, ShieldAlert, Map,
+  Briefcase, Check, LogOut, Pencil, X, ShieldAlert, Map, Dices,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
@@ -332,6 +332,7 @@ export function Sidebar() {
           collapsed={sidebarCollapsed}
           badge={timelines.length}
         />
+        <NavItem to="/name-generator" icon={<Dices size={15} />} label="Namensgenerator" collapsed={sidebarCollapsed} />
 
         {/* Pages section */}
         {!sidebarCollapsed ? (
