@@ -268,8 +268,8 @@ function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
                     position: 'absolute', left: cardLeft,
                     top: above ? axisY - VT_STEM - VT_CARD_H : axisY + VT_STEM,
                     width: VT_CARD_W, height: VT_CARD_H,
-                    background: isActive ? '#252530' : '#19191f',
-                    border: `1px solid ${isActive ? catColor : 'rgba(255,255,255,0.07)'}`,
+                    background: isActive ? `${catColor}28` : `${catColor}10`,
+                    border: `1px solid ${isActive ? catColor : `${catColor}44`}`,
                     borderRadius: 8, padding: '7px 10px',
                     cursor: 'pointer', zIndex: isActive ? 14 : 5, overflow: 'hidden',
                     transition: 'background 0.15s, border-color 0.15s', outline: 'none',
@@ -293,9 +293,9 @@ function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
       {activeEvent && (
         <div style={{
           borderRadius: 10,
-          border: `1px solid ${activeCatColor}44`,
+          border: `1px solid ${activeCatColor}55`,
           borderLeft: `3px solid ${activeCatColor}`,
-          background: '#17171d',
+          background: `${activeCatColor}14`,
           padding: '14px 16px',
           display: 'flex', flexDirection: 'column', gap: 6,
           marginTop: 2,
