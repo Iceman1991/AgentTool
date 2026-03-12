@@ -46,6 +46,12 @@ export function NotePageEditor({ page }: NotePageEditorProps) {
   // Sort blocks by order
   const blocks = [...page.blocks].sort((a, b) => a.order - b.order);
 
+  // Sync local state when navigating to a different page
+  useEffect(() => {
+    setTitle(page.title);
+    setIcon(page.icon);
+  }, [page.id]);
+
   // Title debounce save
   useEffect(() => {
     if (titleDebounce.current) clearTimeout(titleDebounce.current);

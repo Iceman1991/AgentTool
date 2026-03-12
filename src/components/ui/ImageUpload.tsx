@@ -18,7 +18,7 @@ export function ImageUpload({ value, onChange, label = 'Bild', className }: Imag
     const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const MAX = 1200;
+      const MAX = 1600;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
@@ -29,7 +29,7 @@ export function ImageUpload({ value, onChange, label = 'Bild', className }: Imag
       canvas.height = height;
       canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(url);
-      onChange(canvas.toDataURL('image/jpeg', 0.78));
+      onChange(canvas.toDataURL('image/jpeg', 0.88));
     };
     img.src = url;
   };
