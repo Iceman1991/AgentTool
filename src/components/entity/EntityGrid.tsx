@@ -30,7 +30,11 @@ export const EntityGrid = memo(function EntityGrid({ entities, entityTypes, onCr
       {entities.map(entity => {
         const entityType = typeMap.get(entity.typeId);
         if (!entityType) return null;
-        return <EntityCard key={entity.id} entity={entity} entityType={entityType} />;
+        return (
+          <div key={entity.id} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 320px' }}>
+            <EntityCard entity={entity} entityType={entityType} />
+          </div>
+        );
       })}
     </div>
   );

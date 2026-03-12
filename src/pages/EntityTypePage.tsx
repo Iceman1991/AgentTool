@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, LayoutGrid, List, Network, FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check, X, Folder, GripVertical } from 'lucide-react';
 import {
@@ -278,7 +279,7 @@ const SortableEntityCard = memo(function SortableEntityCard({ entity, entityType
   );
 });
 
-function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, currentFolderId, onCreateEntity, onMoveEntity }: FolderMenuProps) {
+const EntityGridWithFolderMenu = memo(function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, currentFolderId, onCreateEntity, onMoveEntity }: FolderMenuProps) {
   const [localEntities, setLocalEntities] = useState<Entity[]>(entities);
   const reorderEntities = useEntityStore(s => s.reorderEntities);
   const duplicateEntity = useEntityStore(s => s.duplicateEntity);
@@ -328,7 +329,7 @@ function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, 
       </SortableContext>
     </DndContext>
   );
-}
+});
 
 function EntityTableWithFolderMenu({ entities, entityTypes, folders, currentFolderId, onCreateEntity, onMoveEntity }: FolderMenuProps) {
   if (entities.length === 0) return <p className="text-sm text-gray-600 italic py-2">Keine Einträge.</p>;
@@ -406,19 +407,29 @@ const EntityCardInner = memo(function EntityCardInner({ entity, entityType }: { 
 export function EntityTypePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const getEntityTypeBySlug = useEntityTypeStore(s => s.getEntityTypeBySlug);
+  const entityType = useEntityTypeStore(
+    useShallow(s => s.entityTypes.find(t => t.slug === slug))
+  );
   const entityTypes = useEntityTypeStore(s => s.entityTypes);
-  const getEntitiesByType = useEntityStore(s => s.getEntitiesByType);
   const updateEntity = useEntityStore(s => s.updateEntity);
   const openModal = useUIStore(s => s.openModal);
   const { entityViewMode, setEntityViewMode } = useUIStore();
   const { getFoldersByType, createFolder, updateFolder, deleteFolder } = useEntityFolderStore();
 
+  const typeId = entityType?.id;
+
+  // Subscribe only to entities of this type — re-renders only when these entities change
+  const typeEntities = useEntityStore(
+    useShallow(s =>
+      !typeId ? [] : s.entities
+        .filter(e => e.typeId === typeId)
+        .sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt))
+    )
+  );
+
   const [newFolderName, setNewFolderName] = useState('');
   const [addingFolder, setAddingFolder] = useState(false);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
-
-  const entityType = slug ? getEntityTypeBySlug(slug) : undefined;
 
   useEffect(() => {
     if (addingFolder) newFolderInputRef.current?.focus();
@@ -426,30 +437,29 @@ export function EntityTypePage() {
 
   if (!entityType) return <NotFoundPage />;
 
-  const typeEntities = getEntitiesByType(entityType.id);
   const folders = getFoldersByType(entityType.id);
 
-  const handleCreateEntity = () => {
+  const handleCreateEntity = useCallback(() => {
     openModal({ type: 'createEntity', payload: { entityTypeId: entityType.id } });
-  };
+  }, [openModal, entityType.id]);
 
-  const handleMoveEntity = (entityId: string, folderId: string | null) => {
+  const handleMoveEntity = useCallback((entityId: string, folderId: string | null) => {
     updateEntity(entityId, { folderId: folderId ?? undefined });
-  };
+  }, [updateEntity]);
 
-  const handleAddFolder = async () => {
+  const handleAddFolder = useCallback(async () => {
     if (!newFolderName.trim()) return;
     await createFolder(entityType.id, newFolderName.trim());
     setNewFolderName('');
     setAddingFolder(false);
-  };
+  }, [newFolderName, createFolder, entityType.id]);
 
-  // Group entities
-  const ungrouped = typeEntities.filter(e => !e.folderId);
-  const grouped = folders.map(f => ({
+  // Group entities — only recomputed when typeEntities or folders change
+  const ungrouped = useMemo(() => typeEntities.filter(e => !e.folderId), [typeEntities]);
+  const grouped = useMemo(() => folders.map(f => ({
     folder: f,
     entities: typeEntities.filter(e => e.folderId === f.id),
-  }));
+  })), [folders, typeEntities]);
 
   const hasFolders = folders.length > 0;
 
