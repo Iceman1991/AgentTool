@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, LayoutGrid, List, Network, FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check, X, Folder, GripVertical } from 'lucide-react';
+import { Plus, LayoutGrid, List, Network, FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check, X, Folder, GripVertical, CheckSquare, Square } from 'lucide-react';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core';
@@ -39,6 +39,9 @@ interface FolderSectionProps {
   onRenameFolder?: (id: string, name: string) => void;
   onDeleteFolder?: (id: string) => void;
   onMoveEntity: (entityId: string, folderId: string | null) => void;
+  selectionMode: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
 }
 
 function FolderSection({
@@ -52,6 +55,9 @@ function FolderSection({
   onRenameFolder,
   onDeleteFolder,
   onMoveEntity,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
 }: FolderSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -158,6 +164,9 @@ function FolderSection({
               currentFolderId={folder?.id ?? null}
               onCreateEntity={onCreateEntity}
               onMoveEntity={onMoveEntity}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={onToggleSelect}
             />
           ) : (
             <EntityTableWithFolderMenu
@@ -185,6 +194,9 @@ interface FolderMenuProps {
   currentFolderId: string | null;
   onCreateEntity?: () => void;
   onMoveEntity: (entityId: string, folderId: string | null) => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 interface SortableCardProps {
@@ -193,13 +205,16 @@ interface SortableCardProps {
   folders: EntityFolder[];
   onMoveEntity: (entityId: string, folderId: string | null) => void;
   onDuplicate: (entityId: string) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-const SortableEntityCard = memo(function SortableEntityCard({ entity, entityTypes, folders, onMoveEntity, onDuplicate }: SortableCardProps) {
+const SortableEntityCard = memo(function SortableEntityCard({ entity, entityTypes, folders, onMoveEntity, onDuplicate, selectionMode, selected, onToggleSelect }: SortableCardProps) {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const et = entityTypes.find(t => t.id === entity.typeId);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entity.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entity.id, disabled: selectionMode });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -211,24 +226,38 @@ const SortableEntityCard = memo(function SortableEntityCard({ entity, entityType
 
   return (
     <div ref={setNodeRef} style={style} className="relative group/card">
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-2 left-2 z-10 opacity-0 group-hover/card:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 rounded bg-gray-900/80 border border-gray-700 text-gray-400 hover:text-gray-200"
-        onClick={e => e.stopPropagation()}
-        title="Ziehen zum Sortieren"
-      >
-        <GripVertical size={12} />
-      </div>
+      {selectionMode ? (
+        /* Selection checkbox */
+        <button
+          type="button"
+          onClick={() => onToggleSelect?.(entity.id)}
+          className="absolute top-2 left-2 z-10 p-0.5 rounded text-accent-400 bg-gray-900/90"
+        >
+          {selected ? <CheckSquare size={18} /> : <Square size={18} className="text-gray-500" />}
+        </button>
+      ) : (
+        /* Drag handle */
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 left-2 z-10 opacity-0 group-hover/card:opacity-100 transition-opacity cursor-grab active:cursor-grabbing p-1 rounded bg-gray-900/80 border border-gray-700 text-gray-400 hover:text-gray-200"
+          onClick={e => e.stopPropagation()}
+          title="Ziehen zum Sortieren"
+        >
+          <GripVertical size={12} />
+        </div>
+      )}
 
-      {/* Entity card — click to navigate */}
-      <div className="cursor-pointer h-full" onClick={() => navigate(`/entities/${entity.id}`)}>
+      {/* Entity card — click to navigate or toggle selection */}
+      <div
+        className={cn('cursor-pointer h-full', selectionMode && selected && 'ring-2 ring-accent-500 rounded-xl')}
+        onClick={() => selectionMode ? onToggleSelect?.(entity.id) : navigate(`/entities/${entity.id}`)}
+      >
         <EntityCardInner entity={entity} entityType={et} />
       </div>
 
-      {/* Context menu button */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+      {/* Context menu button — hidden in selection mode */}
+      <div className={cn('absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity z-10', selectionMode && 'hidden')}>
         <div className="relative">
           <button
             className="flex items-center gap-1 px-2 py-1 rounded bg-gray-900/90 border border-gray-700 text-xs text-gray-300 hover:text-gray-100 hover:border-gray-500"
@@ -279,7 +308,7 @@ const SortableEntityCard = memo(function SortableEntityCard({ entity, entityType
   );
 });
 
-const EntityGridWithFolderMenu = memo(function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, currentFolderId, onCreateEntity, onMoveEntity }: FolderMenuProps) {
+const EntityGridWithFolderMenu = memo(function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, currentFolderId, onCreateEntity, onMoveEntity, selectionMode, selectedIds, onToggleSelect }: FolderMenuProps) {
   const [localEntities, setLocalEntities] = useState<Entity[]>(entities);
   const reorderEntities = useEntityStore(s => s.reorderEntities);
   const duplicateEntity = useEntityStore(s => s.duplicateEntity);
@@ -323,6 +352,9 @@ const EntityGridWithFolderMenu = memo(function EntityGridWithFolderMenu({ entiti
               folders={folders}
               onMoveEntity={onMoveEntity}
               onDuplicate={handleDuplicate}
+              selectionMode={selectionMode}
+              selected={selectedIds?.has(entity.id)}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </div>
@@ -423,6 +455,11 @@ export function EntityTypePage() {
   const [addingFolder, setAddingFolder] = useState(false);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
 
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const deleteEntity = useEntityStore(s => s.deleteEntity);
+
   useEffect(() => {
     if (addingFolder) newFolderInputRef.current?.focus();
   }, [addingFolder]);
@@ -445,6 +482,33 @@ export function EntityTypePage() {
     setNewFolderName('');
     setAddingFolder(false);
   }, [newFolderName, createFolder, entityType.id]);
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectionMode = useCallback(() => {
+    setSelectionMode(v => !v);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(typeEntities.map(e => e.id)));
+  }, [typeEntities]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`${selectedIds.size} Einträge in den Papierkorb verschieben?`)) return;
+    setBulkDeleting(true);
+    await Promise.all([...selectedIds].map(id => deleteEntity(id)));
+    setBulkDeleting(false);
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  }, [selectedIds, deleteEntity]);
 
   // Group entities — only recomputed when typeEntities or folders change
   const ungrouped = useMemo(() => typeEntities.filter(e => !e.folderId), [typeEntities]);
@@ -486,8 +550,18 @@ export function EntityTypePage() {
           <Tabs
             tabs={VIEW_TABS}
             activeTab={entityViewMode}
-            onChange={id => setEntityViewMode(id as EntityViewMode)}
+            onChange={id => { setEntityViewMode(id as EntityViewMode); setSelectionMode(false); setSelectedIds(new Set()); }}
           />
+          {entityViewMode === 'grid' && (
+            <Button
+              variant={selectionMode ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={handleToggleSelectionMode}
+              title="Auswählen"
+            >
+              <CheckSquare size={14} /> <span className="hidden sm:inline">Auswählen</span>
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => navigate('/graph')} title="Graph">
             <Network size={14} /> <span className="hidden sm:inline">Graph</span>
           </Button>
@@ -499,11 +573,49 @@ export function EntityTypePage() {
           >
             <FolderPlus size={14} /> <span className="hidden sm:inline">Ordner</span>
           </Button>
-          <Button variant="primary" onClick={handleCreateEntity}>
-            <Plus size={16} /> <span className="hidden xs:inline">Neuer </span>{entityType.name}
-          </Button>
+          {!selectionMode && (
+            <Button variant="primary" onClick={handleCreateEntity}>
+              <Plus size={16} /> <span className="hidden xs:inline">Neuer </span>{entityType.name}
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      {selectionMode && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-gray-800 border border-white/[0.08] rounded-xl flex-wrap">
+          <span className="text-sm text-gray-300 font-medium">
+            {selectedIds.size} ausgewählt
+          </span>
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Alle auswählen ({typeEntities.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Auswahl aufheben
+          </button>
+          <div className="flex-1" />
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleBulkDelete}
+            loading={bulkDeleting}
+            disabled={selectedIds.size === 0}
+          >
+            <Trash2 size={13} /> {selectedIds.size > 0 ? `${selectedIds.size} löschen` : 'Löschen'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleToggleSelectionMode}>
+            <X size={13} /> Abbrechen
+          </Button>
+        </div>
+      )}
 
       {/* New folder input */}
       {addingFolder && (
@@ -552,6 +664,9 @@ export function EntityTypePage() {
               onRenameFolder={(id, name) => updateFolder(id, { name })}
               onDeleteFolder={deleteFolder}
               onMoveEntity={handleMoveEntity}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
             />
           ))}
 
@@ -566,11 +681,14 @@ export function EntityTypePage() {
               folders={folders}
               onCreateEntity={handleCreateEntity}
               onMoveEntity={handleMoveEntity}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
             />
           )}
         </div>
       ) : (
-        
+
         entityViewMode === 'grid' ? (
           <EntityGridWithFolderMenu
             entities={typeEntities}
@@ -579,6 +697,9 @@ export function EntityTypePage() {
             currentFolderId={null}
             onCreateEntity={handleCreateEntity}
             onMoveEntity={handleMoveEntity}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
           />
         ) : (
           <EntityTable
