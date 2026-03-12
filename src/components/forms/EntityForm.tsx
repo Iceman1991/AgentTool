@@ -6,6 +6,7 @@ import { ImageUpload } from '../ui/ImageUpload';
 import { RichTextEditor } from '../ui/RichTextEditor';
 import { DynamicField } from './DynamicField';
 import { useEntityStore } from '../../stores/entityStore';
+import { useEntityFolderStore } from '../../stores/entityFolderStore';
 import type { Entity, EntityType, PropertyValue } from '../../types';
 
 interface EntityFormProps {
@@ -17,11 +18,14 @@ interface EntityFormProps {
 
 export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormProps) {
   const { createEntity, updateEntity } = useEntityStore();
+  const { getFoldersByType } = useEntityFolderStore();
+  const folders = getFoldersByType(entityType.id);
 
   const [name, setName] = useState(entity?.name || '');
   const [summary, setSummary] = useState(entity?.summary || '');
   const [imageUrl, setImageUrl] = useState<string | null>(entity?.imageUrl || null);
   const [tags, setTags] = useState<string[]>(entity?.tags || []);
+  const [folderId, setFolderId] = useState<string | null>(entity?.folderId ?? null);
   const [properties, setProperties] = useState<Record<string, PropertyValue>>(
     entity?.properties || {}
   );
@@ -45,8 +49,9 @@ export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormP
           imageUrl: imageUrl || undefined,
           tags,
           properties,
+          folderId: folderId ?? undefined,
         });
-        onSave({ ...entity, name: name.trim(), summary: summary.trim() || undefined, imageUrl: imageUrl || undefined, tags, properties });
+        onSave({ ...entity, name: name.trim(), summary: summary.trim() || undefined, imageUrl: imageUrl || undefined, tags, properties, folderId: folderId ?? undefined });
       } else {
         const created = await createEntity({
           typeId: entityType.id,
@@ -55,6 +60,7 @@ export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormP
           imageUrl: imageUrl || undefined,
           tags,
           properties,
+          folderId: folderId ?? undefined,
         });
         onSave(created);
       }
@@ -103,6 +109,22 @@ export function EntityForm({ entityType, entity, onSave, onCancel }: EntityFormP
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {folders.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-300">Ordner</label>
+          <select
+            value={folderId ?? ''}
+            onChange={e => setFolderId(e.target.value || null)}
+            className="bg-gray-800 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent-500"
+          >
+            <option value="">Kein Ordner</option>
+            {folders.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
         </div>
       )}
 
