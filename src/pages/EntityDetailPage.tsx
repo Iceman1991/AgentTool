@@ -158,12 +158,17 @@ export function EntityDetailPage() {
       {hasProperties && (
         <Card>
           <h2 className="font-display text-lg font-semibold text-gray-200 mb-4">Eigenschaften</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-5">
             {sortedProps.map(prop => {
               const value = entity.properties[prop.key];
               if (value === null || value === undefined || value === '') return null;
+              const isFullWidth = prop.type === 'richtext' || prop.type === 'multiselect';
               return (
-                <div key={prop.id} className="flex flex-col gap-1">
+                <div
+                  key={prop.id}
+                  className="flex flex-col gap-1.5"
+                  style={isFullWidth ? { gridColumn: '1 / -1' } : undefined}
+                >
                   <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {prop.name}
                   </span>

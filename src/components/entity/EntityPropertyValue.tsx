@@ -55,7 +55,7 @@ export function EntityPropertyValue({ property, value }: EntityPropertyValueProp
       const clean = DOMPurify.sanitize(String(value));
       return (
         <div
-          className="prose prose-invert prose-sm max-w-none text-gray-300"
+          className="prose prose-invert prose-sm max-w-none text-gray-300 pt-1 border-t border-white/[0.06]"
           dangerouslySetInnerHTML={{ __html: clean }}
         />
       );
