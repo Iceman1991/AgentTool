@@ -1,14 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus, Network, Clock, Settings, Circle, Users } from 'lucide-react';
+import { Plus, Network, Clock, Settings, Circle, BookOpen, Link2, ScrollText, Zap } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import type { ForwardRefExoticComponent, RefAttributes } from 'react';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
 import { useEntityTypeStore } from '../stores/entityTypeStore';
 import { useEntityStore } from '../stores/entityStore';
 import { useTimelineStore } from '../stores/timelineStore';
+import { useRelationshipStore } from '../stores/relationshipStore';
+import { useNotePageStore } from '../stores/notePageStore';
 import { useUIStore } from '../stores/uiStore';
 import { formatGolarionDate } from '../lib/utils';
 
@@ -19,192 +18,377 @@ function EntityTypeIcon({ name, size = 16 }: { name: string; size?: number }) {
   return Icon ? <Icon size={size} /> : <Circle size={size} />;
 }
 
+function StatCard({
+  value, label, icon, color,
+}: {
+  value: number;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #141419 0%, #1c1c23 100%)',
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: '16px',
+      padding: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Glow blob */}
+      <div style={{
+        position: 'absolute', top: '-20px', right: '-20px',
+        width: '80px', height: '80px', borderRadius: '50%',
+        backgroundColor: color, opacity: 0.08, filter: 'blur(20px)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: color + '22', color,
+      }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1, color, fontVariantNumeric: 'tabular-nums' }}>
+          {value}
+        </div>
+        <div style={{ fontSize: '12px', color: '#8A8070', marginTop: '3px' }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const entityTypes = useEntityTypeStore(s => s.entityTypes);
   const entities = useEntityStore(s => s.entities);
   const { getSortedEvents } = useTimelineStore();
+  const { relationships } = useRelationshipStore();
+  const notePages = useNotePageStore(s => s.notePages);
   const openModal = useUIStore(s => s.openModal);
 
-  const recentEntities = [...entities]
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, 6);
-
-  const recentEvents = getSortedEvents().slice(-5).reverse();
-
+  const sortedEvents = getSortedEvents();
+  const recentEntities = [...entities].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  const recentEvents = sortedEvents.slice(-5).reverse();
   const typeMap = new Map(entityTypes.map(et => [et.id, et]));
 
-  const totalEntities = entities.length;
-  const totalRelationships = 0; // Would need to import relationship store
-  const totalEvents = getSortedEvents().length;
+  // Entities per type for bar chart
+  const typeStats = entityTypes
+    .map(et => ({ et, count: entities.filter(e => e.typeId === et.id).length }))
+    .filter(x => x.count > 0)
+    .sort((a, b) => b.count - a.count);
+  const maxCount = Math.max(...typeStats.map(x => x.count), 1);
 
   return (
-    <div className="p-6 space-y-8 max-w-7xl">
+    <div style={{ padding: '32px', maxWidth: '1100px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+
       {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl font-bold text-gray-100 mb-1">Kampagnen-Dashboard</h1>
-        <p className="text-gray-500">Überblick deiner Pathfinder 2 Kampagne</p>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: '28px', fontWeight: 700, color: '#EDE8DC', margin: 0, lineHeight: 1.1 }}>
+            Kampagnen-Dashboard
+          </h1>
+          <p style={{ color: '#8A8070', fontSize: '14px', marginTop: '6px' }}>
+            Überblick deiner Pathfinder 2 Kampagne
+          </p>
+        </div>
+        {sortedEvents.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 14px', borderRadius: '10px',
+            backgroundColor: 'rgba(196,154,74,0.1)', border: '1px solid rgba(196,154,74,0.2)',
+          }}>
+            <Zap size={13} style={{ color: '#C49A4A' }} />
+            <span style={{ fontSize: '12px', color: '#C49A4A', fontWeight: 500 }}>
+              Letztes Ereignis: {recentEvents[0]?.title}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="text-center">
-          <div className="text-3xl font-bold text-accent-400 mb-1">{totalEntities}</div>
-          <div className="text-sm text-gray-500">Entitäten</div>
-        </Card>
-        <Card className="text-center">
-          <div className="text-3xl font-bold text-blue-400 mb-1">{entityTypes.length}</div>
-          <div className="text-sm text-gray-500">Typen</div>
-        </Card>
-        <Card className="text-center">
-          <div className="text-3xl font-bold text-green-400 mb-1">{totalEvents}</div>
-          <div className="text-sm text-gray-500">Ereignisse</div>
-        </Card>
-        <Card className="text-center">
-          <div className="text-3xl font-bold text-orange-400 mb-1">{totalRelationships}</div>
-          <div className="text-sm text-gray-500">Beziehungen</div>
-        </Card>
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+        <StatCard value={entities.length} label="Entitäten" icon={<Circle size={20} />} color="#C49A4A" />
+        <StatCard value={relationships.length} label="Beziehungen" icon={<Link2 size={20} />} color="#7C9FD4" />
+        <StatCard value={sortedEvents.length} label="Ereignisse" icon={<Clock size={20} />} color="#7DC47B" />
+        <StatCard value={notePages.length} label="Notizseiten" icon={<BookOpen size={20} />} color="#C47D9F" />
       </div>
 
-      {/* Entities by type */}
-      <div>
-        <h2 className="font-display text-xl font-semibold text-gray-200 mb-4">Entitäten nach Typ</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {entityTypes.map(et => {
-            const count = entities.filter(e => e.typeId === et.id).length;
-            return (
-              <Card
+      {/* Entity type bar chart */}
+      {typeStats.length > 0 && (
+        <div style={{
+          backgroundColor: '#141419', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '16px', padding: '24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <h2 style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: '16px', fontWeight: 600, color: '#EDE8DC', margin: 0 }}>
+              Entitäten nach Typ
+            </h2>
+            <span style={{ fontSize: '12px', color: '#4A4438' }}>{entities.length} gesamt</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {typeStats.map(({ et, count }) => (
+              <div
                 key={et.id}
-                hoverable
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
                 onClick={() => navigate(`/type/${et.slug}`)}
-                className="text-center py-4"
               >
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2"
-                  style={{ backgroundColor: et.color + '22', color: et.color }}
-                >
-                  <EntityTypeIcon name={et.icon} size={24} />
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: et.color + '22', color: et.color,
+                }}>
+                  <EntityTypeIcon name={et.icon} size={13} />
                 </div>
-                <div className="font-semibold text-gray-200 text-sm">{et.name}</div>
-                <div
-                  className="text-2xl font-bold mt-1"
-                  style={{ color: et.color }}
-                >
+                <div style={{ width: '100px', flexShrink: 0, fontSize: '13px', color: '#8A8070', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {et.name}
+                </div>
+                <div style={{ flex: 1, height: '8px', backgroundColor: '#1c1c23', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: '999px',
+                    width: `${(count / maxCount) * 100}%`,
+                    backgroundColor: et.color,
+                    opacity: 0.8,
+                    transition: 'width 600ms ease',
+                  }} />
+                </div>
+                <div style={{ width: '28px', textAlign: 'right', fontSize: '13px', fontWeight: 600, color: et.color, flexShrink: 0 }}>
                   {count}
                 </div>
-              </Card>
-            );
-          })}
-
-          <Card
-            hoverable
-            onClick={() => openModal({ type: 'createEntityType' })}
-            className="text-center py-4 border-dashed"
-          >
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2 bg-gray-700">
-              <Plus size={24} className="text-gray-500" />
-            </div>
-            <div className="text-sm text-gray-600">Neuer Typ</div>
-          </Card>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent entities */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-semibold text-gray-200">Zuletzt hinzugefügt</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/graph')}>
-              <Users size={14} /> Alle anzeigen
-            </Button>
+              </div>
+            ))}
           </div>
-          <div className="space-y-2">
+        </div>
+      )}
+
+      {/* Two-column: recent entities + recent events */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+        {/* Recent entities */}
+        <div style={{
+          backgroundColor: '#141419', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '16px', padding: '24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2 style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: '16px', fontWeight: 600, color: '#EDE8DC', margin: 0 }}>
+              Zuletzt hinzugefügt
+            </h2>
+            <button
+              onClick={() => navigate('/graph')}
+              style={{ fontSize: '12px', color: '#8A8070', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#EDE8DC'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#8A8070'; }}
+            >
+              Alle →
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {recentEntities.map(entity => {
               const et = typeMap.get(entity.typeId);
               return (
                 <div
                   key={entity.id}
-                  className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 cursor-pointer transition-colors"
                   onClick={() => navigate(`/entities/${entity.id}`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 12px', borderRadius: '10px', cursor: 'pointer',
+                    backgroundColor: 'transparent', border: '1px solid transparent',
+                    transition: 'background-color 120ms, border-color 120ms',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLDivElement;
+                    el.style.backgroundColor = '#1c1c23';
+                    el.style.borderColor = 'rgba(255,255,255,0.06)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLDivElement;
+                    el.style.backgroundColor = 'transparent';
+                    el.style.borderColor = 'transparent';
+                  }}
                 >
                   {et && (
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: et.color + '22', color: et.color }}
-                    >
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: et.color + '22', color: et.color,
+                    }}>
                       <EntityTypeIcon name={et.icon} size={14} />
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-200 text-sm truncate">{entity.name}</p>
-                    {et && <p className="text-xs text-gray-500">{et.name}</p>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#EDE8DC', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {entity.name}
+                    </div>
+                    {et && <div style={{ fontSize: '11px', color: '#4A4438', marginTop: '1px' }}>{et.name}</div>}
                   </div>
-                  {entity.tags.slice(0, 2).map(tag => (
-                    <Badge key={tag} size="sm">{tag}</Badge>
-                  ))}
+                  {entity.tags.length > 0 && (
+                    <div style={{
+                      fontSize: '10px', padding: '2px 7px', borderRadius: '999px',
+                      backgroundColor: 'rgba(196,154,74,0.1)', color: '#C49A4A', flexShrink: 0,
+                    }}>
+                      {entity.tags[0]}
+                    </div>
+                  )}
                 </div>
               );
             })}
             {recentEntities.length === 0 && (
-              <p className="text-sm text-gray-600 py-4 text-center">Noch keine Entitäten vorhanden</p>
+              <p style={{ fontSize: '13px', color: '#4A4438', textAlign: 'center', padding: '24px 0' }}>
+                Noch keine Entitäten vorhanden
+              </p>
             )}
           </div>
         </div>
 
-        {/* Recent events */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-semibold text-gray-200">Letzte Ereignisse</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/timeline')}>
-              <Clock size={14} /> Alle anzeigen
-            </Button>
+        {/* Recent timeline events */}
+        <div style={{
+          backgroundColor: '#141419', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '16px', padding: '24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2 style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: '16px', fontWeight: 600, color: '#EDE8DC', margin: 0 }}>
+              Letzte Ereignisse
+            </h2>
+            <button
+              onClick={() => navigate('/timeline')}
+              style={{ fontSize: '12px', color: '#8A8070', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#EDE8DC'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#8A8070'; }}
+            >
+              Alle →
+            </button>
           </div>
-          <div className="space-y-2">
-            {recentEvents.map(event => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {recentEvents.map((event, i) => (
               <div
                 key={event.id}
-                className="p-3 bg-gray-800 rounded-lg border border-gray-700 cursor-pointer hover:border-gray-600 transition-colors"
                 onClick={() => navigate('/timeline')}
+                style={{ display: 'flex', gap: '12px', cursor: 'pointer', paddingBottom: i < recentEvents.length - 1 ? '0' : '0' }}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-gray-500 font-mono">{formatGolarionDate(event.date)}</span>
-                  {event.sessionNumber && (
-                    <Badge size="sm">S{event.sessionNumber}</Badge>
+                {/* Timeline line + dot */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: '20px' }}>
+                  <div style={{
+                    width: '8px', height: '8px', borderRadius: '50%', marginTop: '14px', flexShrink: 0,
+                    backgroundColor: '#C49A4A', boxShadow: '0 0 6px rgba(196,154,74,0.5)',
+                  }} />
+                  {i < recentEvents.length - 1 && (
+                    <div style={{ flex: 1, width: '1px', backgroundColor: 'rgba(255,255,255,0.06)', minHeight: '20px', marginTop: '4px' }} />
                   )}
                 </div>
-                <p className="text-sm font-medium text-gray-200">{event.title}</p>
+                {/* Content */}
+                <div style={{ flex: 1, padding: '10px 0', paddingBottom: i < recentEvents.length - 1 ? '10px' : '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '10px', color: '#4A4438', fontFamily: 'monospace' }}>
+                      {formatGolarionDate(event.date)}
+                    </span>
+                    {event.sessionNumber && (
+                      <span style={{
+                        fontSize: '10px', padding: '1px 6px', borderRadius: '999px',
+                        backgroundColor: 'rgba(196,154,74,0.1)', color: '#C49A4A',
+                      }}>
+                        S{event.sessionNumber}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#EDE8DC' }}>{event.title}</div>
+                  {event.description && (
+                    <div style={{
+                      fontSize: '11px', color: '#8A8070', marginTop: '2px',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {event.description}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
             {recentEvents.length === 0 && (
-              <p className="text-sm text-gray-600 py-4 text-center">Noch keine Ereignisse vorhanden</p>
+              <p style={{ fontSize: '13px', color: '#4A4438', textAlign: 'center', padding: '24px 0' }}>
+                Noch keine Ereignisse vorhanden
+              </p>
             )}
           </div>
         </div>
       </div>
 
       {/* Quick actions */}
-      <div>
-        <h2 className="font-display text-xl font-semibold text-gray-200 mb-4">Schnellaktionen</h2>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="primary" onClick={() => openModal({ type: 'createEntityType' })}>
-            <Plus size={16} /> Neuer Entitäts-Typ
-          </Button>
-          {entityTypes[0] && (
-            <Button variant="secondary" onClick={() => openModal({ type: 'createEntity', payload: { entityTypeId: entityTypes[0].id } })}>
-              <Plus size={16} /> Neuer {entityTypes[0].name}
-            </Button>
-          )}
-          <Button variant="secondary" onClick={() => openModal({ type: 'createEvent' })}>
-            <Clock size={16} /> Ereignis hinzufügen
-          </Button>
-          <Button variant="ghost" onClick={() => navigate('/graph')}>
-            <Network size={16} /> Graph öffnen
-          </Button>
-          <Button variant="ghost" onClick={() => navigate('/settings')}>
-            <Settings size={16} /> Einstellungen
-          </Button>
-        </div>
+      <div style={{
+        backgroundColor: '#141419', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: '16px', padding: '20px 24px',
+        display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: '12px', color: '#4A4438', marginRight: '4px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Schnellaktionen
+        </span>
+        {[
+          {
+            label: 'Neuer Typ',
+            icon: <Plus size={13} />,
+            accent: true,
+            onClick: () => openModal({ type: 'createEntityType' }),
+          },
+          ...(entityTypes[0] ? [{
+            label: `${entityTypes[0].name} erstellen`,
+            icon: <Plus size={13} />,
+            accent: false,
+            onClick: () => openModal({ type: 'createEntity', payload: { entityTypeId: entityTypes[0].id } }),
+          }] : []),
+          {
+            label: 'Ereignis hinzufügen',
+            icon: <Clock size={13} />,
+            accent: false,
+            onClick: () => openModal({ type: 'createEvent' }),
+          },
+          {
+            label: 'Graph',
+            icon: <Network size={13} />,
+            accent: false,
+            onClick: () => navigate('/graph'),
+          },
+          {
+            label: 'Notizseite',
+            icon: <ScrollText size={13} />,
+            accent: false,
+            onClick: () => navigate('/pages'),
+          },
+          {
+            label: 'Einstellungen',
+            icon: <Settings size={13} />,
+            accent: false,
+            onClick: () => navigate('/settings'),
+          },
+        ].map((action, i) => (
+          <button
+            key={i}
+            onClick={action.onClick}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '7px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+              cursor: 'pointer', border: 'none', transition: 'background-color 120ms, color 120ms',
+              backgroundColor: action.accent ? '#C49A4A' : '#1c1c23',
+              color: action.accent ? '#fff' : '#8A8070',
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.backgroundColor = action.accent ? '#D4AA5A' : '#222228';
+              el.style.color = action.accent ? '#fff' : '#EDE8DC';
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.backgroundColor = action.accent ? '#C49A4A' : '#1c1c23';
+              el.style.color = action.accent ? '#fff' : '#8A8070';
+            }}
+          >
+            {action.icon}
+            {action.label}
+          </button>
+        ))}
       </div>
+
     </div>
   );
 }
