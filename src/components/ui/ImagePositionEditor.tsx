@@ -25,32 +25,43 @@ export function ImagePositionEditor({
   editButtonLabel = 'Verschieben',
 }: ImagePositionEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [current, setCurrent] = useState<ImagePosition>(position ?? { x: 50, y: 50 });
-  const [draft, setDraft] = useState<ImagePosition>(position ?? { x: 50, y: 50 });
+
+  // Mutable refs for drag — no React state updates during mousemove
   const dragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+  const draftRef = useRef<ImagePosition>(position ?? { x: 50, y: 50 });
 
   // Sync if external position changes
   useEffect(() => {
     const p = position ?? { x: 50, y: 50 };
     setCurrent(p);
-    setDraft(p);
+    draftRef.current = p;
+    if (imgRef.current) {
+      imgRef.current.style.objectPosition = `${p.x}% ${p.y}%`;
+    }
   }, [position?.x, position?.y]);
 
   const startEdit = () => {
-    setDraft(current);
+    draftRef.current = { ...current };
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
-    setDraft(current);
+    // Reset img to current (committed) position
+    if (imgRef.current) {
+      imgRef.current.style.objectPosition = `${current.x}% ${current.y}%`;
+    }
+    draftRef.current = { ...current };
     setIsEditing(false);
   };
 
   const confirmEdit = () => {
-    setCurrent(draft);
-    onSave(draft);
+    const pos = { ...draftRef.current };
+    setCurrent(pos);
+    onSave(pos);
     setIsEditing(false);
   };
 
@@ -65,20 +76,22 @@ export function ImagePositionEditor({
     if (!isEditing) return;
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!dragging.current || !containerRef.current) return;
+      if (!dragging.current || !containerRef.current || !imgRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const dx = e.clientX - lastMouse.current.x;
       const dy = e.clientY - lastMouse.current.y;
       lastMouse.current = { x: e.clientX, y: e.clientY };
 
-      // Convert pixel delta to percentage (invert: dragging right shifts image left)
       const dxPct = (dx / rect.width) * -100;
       const dyPct = (dy / rect.height) * -100;
 
-      setDraft(prev => ({
-        x: Math.max(0, Math.min(100, prev.x + dxPct)),
-        y: Math.max(0, Math.min(100, prev.y + dyPct)),
-      }));
+      draftRef.current = {
+        x: Math.max(0, Math.min(100, draftRef.current.x + dxPct)),
+        y: Math.max(0, Math.min(100, draftRef.current.y + dyPct)),
+      };
+
+      // Direct DOM update — zero React re-renders during drag
+      imgRef.current.style.objectPosition = `${draftRef.current.x}% ${draftRef.current.y}%`;
     };
 
     const onMouseUp = () => { dragging.current = false; };
@@ -86,11 +99,10 @@ export function ImagePositionEditor({
     // Touch support
     let lastTouch = { x: 0, y: 0 };
     const onTouchStart = (e: TouchEvent) => {
-      if (!isEditing) return;
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || !imgRef.current) return;
       e.preventDefault();
       const rect = containerRef.current.getBoundingClientRect();
       const dx = e.touches[0].clientX - lastTouch.x;
@@ -98,10 +110,11 @@ export function ImagePositionEditor({
       lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       const dxPct = (dx / rect.width) * -100;
       const dyPct = (dy / rect.height) * -100;
-      setDraft(prev => ({
-        x: Math.max(0, Math.min(100, prev.x + dxPct)),
-        y: Math.max(0, Math.min(100, prev.y + dyPct)),
-      }));
+      draftRef.current = {
+        x: Math.max(0, Math.min(100, draftRef.current.x + dxPct)),
+        y: Math.max(0, Math.min(100, draftRef.current.y + dyPct)),
+      };
+      imgRef.current.style.objectPosition = `${draftRef.current.x}% ${draftRef.current.y}%`;
     };
 
     document.addEventListener('mousemove', onMouseMove);
@@ -115,11 +128,10 @@ export function ImagePositionEditor({
     };
   }, [isEditing]);
 
-  const activePos = isEditing ? draft : current;
-
   return (
     <div ref={containerRef} className={cn('relative overflow-hidden group', className)} style={style}>
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         draggable={false}
@@ -130,7 +142,7 @@ export function ImagePositionEditor({
           'w-full h-full object-cover select-none',
           isEditing && 'cursor-grab active:cursor-grabbing',
         )}
-        style={{ objectPosition: `${activePos.x}% ${activePos.y}%` }}
+        style={{ objectPosition: `${current.x}% ${current.y}%` }}
       />
 
       {/* Edit mode overlay */}
