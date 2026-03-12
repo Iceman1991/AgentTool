@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Filter, SortAsc, SortDesc, Trash2, ChevronLeft, X, Pencil, Clock } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -49,62 +49,186 @@ interface VTProps {
 function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
   const allEntities = useEntityStore(s => s.entities);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [pxPerYear, setPxPerYear] = useState(PX_YEAR);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const offsetXRef = useRef(0);
+  const isPanning = useRef(false);
+  const panStartX = useRef(0);
+  const panStartOffset = useRef(0);
+  const wasDragRef = useRef(false);
 
   const minYear = events.reduce((m, e) => Math.min(m, e.date.year), Infinity);
   const maxYear = events.reduce((m, e) => Math.max(m, e.date.year), -Infinity);
   const yearSpan = Math.max(maxYear - minYear + 1, 1);
   const displayMin = minYear * 360;
   const displayRange = yearSpan * 360;
-  const innerW = Math.max(500, yearSpan * PX_YEAR);
+  const innerW = Math.max(500, yearSpan * pxPerYear);
   const totalW = innerW + VT_PAD * 2;
   const axisY = VT_ABOVE;
   const totalH = VT_ABOVE + VT_BELOW + 28;
-
   const getX = (num: number) => VT_PAD + ((num - displayMin) / displayRange) * innerW;
 
-  const yearTicks = Array.from({ length: yearSpan + 1 }, (_, i) => ({
-    year: minYear + i,
-    x: getX((minYear + i) * 360),
-  }));
+  const applyTransform = useCallback(() => {
+    if (innerRef.current) innerRef.current.style.transform = `translateX(${offsetXRef.current}px)`;
+  }, []);
+
+  // Re-apply translate after zoom re-render
+  useLayoutEffect(() => { applyTransform(); }, [pxPerYear, applyTransform]);
+
+  // Center on mount
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const cw = containerRef.current.clientWidth;
+    offsetXRef.current = Math.max(0, (cw - totalW) / 2);
+    applyTransform();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Wheel zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const contentX = cursorX - offsetXRef.current;
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setPxPerYear(prev => {
+        const next = Math.max(12, Math.min(1400, prev * factor));
+        offsetXRef.current = cursorX - contentX * (next / prev);
+        return next;
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Mouse pan
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest('[data-event]')) return;
+      isPanning.current = true;
+      wasDragRef.current = false;
+      panStartX.current = e.clientX;
+      panStartOffset.current = offsetXRef.current;
+      el.style.cursor = 'grabbing';
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isPanning.current) return;
+      const dx = e.clientX - panStartX.current;
+      if (Math.abs(dx) > 3) wasDragRef.current = true;
+      offsetXRef.current = panStartOffset.current + dx;
+      applyTransform();
+    };
+    const onMouseUp = () => { isPanning.current = false; el.style.cursor = 'grab'; };
+    el.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      el.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [applyTransform]);
+
+  const zoomStep = (factor: number) => setPxPerYear(prev => {
+    const next = Math.max(12, Math.min(1400, prev * factor));
+    if (containerRef.current) {
+      const c = containerRef.current.clientWidth / 2;
+      offsetXRef.current = c - (c - offsetXRef.current) * (next / prev);
+    }
+    return next;
+  });
+
+  const resetView = () => {
+    if (containerRef.current) {
+      const cw = containerRef.current.clientWidth;
+      const newInnerW = Math.max(500, yearSpan * PX_YEAR);
+      offsetXRef.current = Math.max(0, (cw - newInnerW - VT_PAD * 2) / 2);
+    }
+    setPxPerYear(PX_YEAR);
+  };
+
+  // Adaptive year step to avoid label overlap
+  const yearStep = pxPerYear < 18 ? 10 : pxPerYear < 36 ? 5 : pxPerYear < 72 ? 2 : 1;
+  const yearTicks = Array.from({ length: yearSpan + 1 }, (_, i) => ({ year: minYear + i, x: getX((minYear + i) * 360) }));
+
+  // Month ticks when zoomed in
+  const showMonthTicks = pxPerYear >= 70;
+  const showMonthLabels = pxPerYear >= 260;
+  const MONTHS_SHORT = ['Aba', 'Cal', 'Pha', 'Goz', 'Des', 'Sar', 'Era', 'Aro', 'Rov', 'Lam', 'Net', 'Kut'];
+  const monthTicks: { key: string; x: number; label: string }[] = [];
+  if (showMonthTicks) {
+    for (let y = minYear; y <= maxYear + 1; y++) {
+      for (let m = 1; m < 12; m++) { // skip 0 (coincides with year tick)
+        monthTicks.push({ key: `${y}-${m}`, x: getX(y * 360 + m * 30), label: showMonthLabels ? MONTHS_SHORT[m] : '' });
+      }
+    }
+  }
 
   const activeEvent = events.find(e => e.id === activeId) ?? null;
   const activeCatColor = activeEvent ? (CAT_COLORS[activeEvent.category] ?? color) : color;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {/* Scrollable visual */}
-      <div style={{ overflowX: 'auto', width: '100%' }}>
-        <div style={{ position: 'relative', width: totalW, height: totalH }}>
+      {/* Viewport */}
+      <div
+        ref={containerRef}
+        style={{ position: 'relative', width: '100%', height: totalH, overflow: 'hidden', cursor: 'grab', userSelect: 'none' }}
+      >
+        {/* Zoom controls */}
+        <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, zIndex: 20 }}>
+          {([['＋', () => zoomStep(1.4)], ['－', () => zoomStep(1 / 1.4)], ['⟲', resetView]] as [string, () => void][]).map(([label, action]) => (
+            <button
+              key={label}
+              type="button"
+              data-event="true"
+              onClick={action}
+              style={{
+                width: 26, height: 26, borderRadius: 6,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                color: '#6B6050', fontSize: 14, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >{label}</button>
+          ))}
+        </div>
 
-          {/* Axis line */}
+        {/* Transformable inner */}
+        <div ref={innerRef} style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH }}>
+
+          {/* Axis */}
           <div style={{
-            position: 'absolute', top: axisY, left: VT_PAD - 12,
-            width: innerW + 24, height: 2,
+            position: 'absolute', top: axisY, left: VT_PAD - 12, width: innerW + 24, height: 2,
             background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.12) 4%, rgba(255,255,255,0.12) 96%, transparent)',
           }} />
-          {/* Arrow head */}
           <div style={{
             position: 'absolute', top: axisY - 5, left: VT_PAD + innerW + 13,
-            width: 0, height: 0,
-            borderTop: '5px solid transparent', borderBottom: '5px solid transparent',
-            borderLeft: '8px solid rgba(255,255,255,0.18)',
+            borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: '8px solid rgba(255,255,255,0.18)',
           }} />
 
-          {/* Year ticks + labels */}
+          {/* Month ticks */}
+          {monthTicks.map(({ key, x, label }) => (
+            <Fragment key={key}>
+              <div style={{ position: 'absolute', left: x, top: axisY - 3, width: 1, height: 6, background: 'rgba(255,255,255,0.07)', transform: 'translateX(-50%)' }} />
+              {label && <div style={{ position: 'absolute', left: x, top: axisY + VT_BELOW + 20, transform: 'translateX(-50%)', fontSize: 9, color: '#3A3228', whiteSpace: 'nowrap' }}>{label}</div>}
+            </Fragment>
+          ))}
+
+          {/* Year ticks */}
           {yearTicks.map(({ year, x }) => (
             <Fragment key={year}>
-              <div style={{
-                position: 'absolute', left: x, top: axisY - 5,
-                width: 1, height: 10, background: 'rgba(255,255,255,0.14)',
-                transform: 'translateX(-50%)',
-              }} />
-              <div style={{
-                position: 'absolute', left: x, top: axisY + VT_BELOW + 4,
-                transform: 'translateX(-50%)', fontSize: 11, color: '#504840',
-                whiteSpace: 'nowrap',
-              }}>
-                {year} SR
-              </div>
+              <div style={{ position: 'absolute', left: x, top: axisY - 6, width: 1, height: 12, background: 'rgba(255,255,255,0.18)', transform: 'translateX(-50%)' }} />
+              {(year - minYear) % yearStep === 0 && (
+                <div style={{ position: 'absolute', left: x, top: axisY + VT_BELOW + 4, transform: 'translateX(-50%)', fontSize: 11, color: '#504840', whiteSpace: 'nowrap' }}>
+                  {year} SR
+                </div>
+              )}
             </Fragment>
           ))}
 
@@ -115,64 +239,47 @@ function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
             const catColor = CAT_COLORS[event.category] ?? '#6B7280';
             const isActive = activeId === event.id;
             const cardLeft = Math.max(2, Math.min(x - VT_CARD_W / 2, totalW - VT_CARD_W - 2));
-            const cardTop = above ? axisY - VT_STEM - VT_CARD_H : axisY + VT_STEM;
-            const stemTop = above ? axisY - VT_STEM : axisY;
-
             return (
               <Fragment key={event.id}>
-                {/* Stem */}
                 <div style={{
-                  position: 'absolute', left: x, top: stemTop,
+                  position: 'absolute', left: x, top: above ? axisY - VT_STEM : axisY,
                   width: 2, height: VT_STEM,
                   background: isActive ? catColor : `${catColor}55`,
-                  transform: 'translateX(-50%)',
-                  transition: 'background 0.15s',
+                  transform: 'translateX(-50%)', transition: 'background 0.15s',
                 }} />
-
-                {/* Dot */}
                 <button
                   type="button"
-                  onClick={() => setActiveId(isActive ? null : event.id)}
+                  data-event="true"
+                  onClick={() => { if (!wasDragRef.current) setActiveId(isActive ? null : event.id); }}
                   style={{
-                    position: 'absolute', left: x, top: axisY,
-                    transform: 'translate(-50%, -50%)',
-                    width: 14, height: 14, borderRadius: '50%',
-                    background: catColor,
+                    position: 'absolute', left: x, top: axisY, transform: 'translate(-50%, -50%)',
+                    width: 14, height: 14, borderRadius: '50%', background: catColor,
                     border: `2px solid ${isActive ? '#EDE8DC' : `${catColor}99`}`,
                     boxShadow: isActive ? `0 0 10px ${catColor}` : `0 0 4px ${catColor}66`,
                     cursor: 'pointer', padding: 0, zIndex: isActive ? 15 : 10,
                     outline: 'none', transition: 'box-shadow 0.15s',
                   }}
                 />
-
-                {/* Card */}
                 <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setActiveId(isActive ? null : event.id)}
+                  role="button" tabIndex={0} data-event="true"
+                  onClick={() => { if (!wasDragRef.current) setActiveId(isActive ? null : event.id); }}
                   onKeyDown={e => e.key === 'Enter' && setActiveId(isActive ? null : event.id)}
                   style={{
-                    position: 'absolute', left: cardLeft, top: cardTop,
+                    position: 'absolute', left: cardLeft,
+                    top: above ? axisY - VT_STEM - VT_CARD_H : axisY + VT_STEM,
                     width: VT_CARD_W, height: VT_CARD_H,
                     background: isActive ? '#252530' : '#19191f',
                     border: `1px solid ${isActive ? catColor : 'rgba(255,255,255,0.07)'}`,
                     borderRadius: 8, padding: '7px 10px',
-                    cursor: 'pointer', zIndex: isActive ? 14 : 5,
-                    overflow: 'hidden',
-                    transition: 'background 0.15s, border-color 0.15s',
-                    outline: 'none',
+                    cursor: 'pointer', zIndex: isActive ? 14 : 5, overflow: 'hidden',
+                    transition: 'background 0.15s, border-color 0.15s', outline: 'none',
                   }}
                 >
                   <div style={{ fontSize: 10, color: catColor, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 5, height: 5, borderRadius: '50%', background: catColor, flexShrink: 0, display: 'inline-block' }} />
                     {formatGolarionDate(event.date)}
                   </div>
-                  <div style={{
-                    fontSize: 12, fontWeight: 600, color: '#EDE8DC',
-                    overflow: 'hidden', textOverflow: 'ellipsis',
-                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                    lineHeight: 1.4,
-                  }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#EDE8DC', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
                     {event.title}
                   </div>
                 </div>
