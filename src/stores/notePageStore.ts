@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db } from '../db';
+import { supabase, getUserId } from '../lib/supabase';
 import { uid } from '../lib/utils';
 import type { NotePage, PageBlock, BlockType } from '../types';
 import { useWorkspaceStore } from './workspaceStore';
@@ -28,18 +28,26 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
 
   load: async () => {
     set({ loading: true });
+    const userId = getUserId();
     const wsId = useWorkspaceStore.getState().currentWorkspaceId;
-    const all = await db.notePages.orderBy('createdAt').toArray();
-    set({ notePages: all.filter(p => !p.deletedAt && (!p.workspaceId || p.workspaceId === wsId)), loading: false });
+    const { data } = await supabase
+      .from('note_pages')
+      .select('*')
+      .eq('user_id', userId)
+      .is('deletedAt', null)
+      .order('"createdAt"', { ascending: true });
+    const all = (data ?? []).map(({ user_id: _u, ...p }: any) => p as NotePage);
+    set({ notePages: all.filter(p => !p.workspaceId || p.workspaceId === wsId), loading: false });
   },
 
   createPage: async (data = {}) => {
-    const now = Date.now();
+    const userId = getUserId();
     const wsId = useWorkspaceStore.getState().currentWorkspaceId;
     const siblings = get().notePages.filter(p =>
       data.parentId !== undefined ? p.parentId === data.parentId : !p.parentId
     );
     const maxOrder = siblings.reduce((max, p) => Math.max(max, p.order ?? 0), -1);
+    const now = Date.now();
     const newPage: NotePage = {
       id: uid(),
       title: data.title ?? 'Neue Seite',
@@ -53,14 +61,14 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
       createdAt: now,
       updatedAt: now,
     };
-    await db.notePages.add(newPage);
+    await supabase.from('note_pages').insert({ ...newPage, user_id: userId });
     set(state => ({ notePages: [...state.notePages, newPage] }));
     return newPage;
   },
 
   updatePage: async (id, data) => {
     const updated = { ...data, updatedAt: Date.now() };
-    await db.notePages.update(id, updated);
+    await supabase.from('note_pages').update(updated).eq('id', id);
     set(state => ({
       notePages: state.notePages.map(p => p.id === id ? { ...p, ...updated } : p),
     }));
@@ -75,24 +83,29 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
     };
     collect(id);
     const now = Date.now();
-    await Promise.all(toDelete.map(pid => db.notePages.update(pid, { deletedAt: now })));
+    await Promise.all(toDelete.map(pid =>
+      supabase.from('note_pages').update({ deletedAt: now }).eq('id', pid)
+    ));
     set(state => ({ notePages: state.notePages.filter(p => !toDelete.includes(p.id)) }));
   },
 
   hardDeletePage: async (id) => {
-    await db.notePages.delete(id);
+    await supabase.from('note_pages').delete().eq('id', id);
     set(state => ({ notePages: state.notePages.filter(p => p.id !== id) }));
   },
 
   reorderPages: async (orderedIds) => {
     const pages = get().notePages;
-    const updates: Promise<void>[] = [];
-    orderedIds.forEach((pageId, index) => {
-      const page = pages.find(p => p.id === pageId);
-      if (page && page.order !== index) {
-        updates.push(db.notePages.update(pageId, { order: index, updatedAt: Date.now() }).then(() => {}));
-      }
-    });
+    const now = Date.now();
+    const updates = orderedIds
+      .map((pageId, index) => {
+        const page = pages.find(p => p.id === pageId);
+        if (page && page.order !== index) {
+          return supabase.from('note_pages').update({ order: index, updatedAt: now }).eq('id', pageId);
+        }
+        return null;
+      })
+      .filter(Boolean);
     await Promise.all(updates);
     set(state => ({
       notePages: state.notePages.map(p => {
@@ -106,18 +119,11 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
     const page = get().notePages.find(p => p.id === pageId);
     if (!page) throw new Error(`Page ${pageId} not found`);
     const maxOrder = page.blocks.reduce((max, b) => Math.max(max, b.order), -1);
-    const newBlock: PageBlock = {
-      id: uid(),
-      type,
-      content: '',
-      order: maxOrder + 1,
-    };
+    const newBlock: PageBlock = { id: uid(), type, content: '', order: maxOrder + 1 };
     const updatedBlocks = [...page.blocks, newBlock];
-    await db.notePages.update(pageId, { blocks: updatedBlocks, updatedAt: Date.now() });
+    await supabase.from('note_pages').update({ blocks: updatedBlocks, updatedAt: Date.now() }).eq('id', pageId);
     set(state => ({
-      notePages: state.notePages.map(p =>
-        p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p
-      ),
+      notePages: state.notePages.map(p => p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p),
     }));
     return newBlock;
   },
@@ -126,11 +132,9 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
     const page = get().notePages.find(p => p.id === pageId);
     if (!page) return;
     const updatedBlocks = page.blocks.map(b => b.id === blockId ? { ...b, content } : b);
-    await db.notePages.update(pageId, { blocks: updatedBlocks, updatedAt: Date.now() });
+    await supabase.from('note_pages').update({ blocks: updatedBlocks, updatedAt: Date.now() }).eq('id', pageId);
     set(state => ({
-      notePages: state.notePages.map(p =>
-        p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p
-      ),
+      notePages: state.notePages.map(p => p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p),
     }));
   },
 
@@ -138,11 +142,9 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
     const page = get().notePages.find(p => p.id === pageId);
     if (!page) return;
     const updatedBlocks = page.blocks.filter(b => b.id !== blockId);
-    await db.notePages.update(pageId, { blocks: updatedBlocks, updatedAt: Date.now() });
+    await supabase.from('note_pages').update({ blocks: updatedBlocks, updatedAt: Date.now() }).eq('id', pageId);
     set(state => ({
-      notePages: state.notePages.map(p =>
-        p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p
-      ),
+      notePages: state.notePages.map(p => p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p),
     }));
   },
 
@@ -151,41 +153,23 @@ export const useNotePageStore = create<NotePageState>((set, get) => ({
     if (!page) return;
     const blockMap = new Map(page.blocks.map(b => [b.id, b]));
     const updatedBlocks = orderedIds
-      .map((id, index) => {
-        const block = blockMap.get(id);
-        return block ? { ...block, order: index } : null;
-      })
+      .map((id, index) => { const block = blockMap.get(id); return block ? { ...block, order: index } : null; })
       .filter((b): b is PageBlock => b !== null);
-    await db.notePages.update(pageId, { blocks: updatedBlocks, updatedAt: Date.now() });
+    await supabase.from('note_pages').update({ blocks: updatedBlocks, updatedAt: Date.now() }).eq('id', pageId);
     set(state => ({
-      notePages: state.notePages.map(p =>
-        p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p
-      ),
+      notePages: state.notePages.map(p => p.id === pageId ? { ...p, blocks: updatedBlocks, updatedAt: Date.now() } : p),
     }));
   },
 
-  getRootPages: () => {
-    return get().notePages.filter(p => !p.parentId);
-  },
-
-  getChildren: (parentId) => {
-    return get().notePages.filter(p => p.parentId === parentId);
-  },
+  getRootPages: () => get().notePages.filter(p => !p.parentId),
+  getChildren: (parentId) => get().notePages.filter(p => p.parentId === parentId),
 
   movePage: async (id, newParentId) => {
-    const update: Partial<NotePage> = { updatedAt: Date.now() };
-    if (newParentId === null) {
-      // Remove parentId by setting to undefined – Dexie stores undefined as missing key
-      update.parentId = undefined;
-    } else {
-      update.parentId = newParentId;
-    }
-    await db.notePages.update(id, update);
+    const update: any = { updatedAt: Date.now(), parentId: newParentId ?? null };
+    await supabase.from('note_pages').update(update).eq('id', id);
     set(state => ({
       notePages: state.notePages.map(p =>
-        p.id === id
-          ? { ...p, parentId: newParentId ?? undefined, updatedAt: Date.now() }
-          : p
+        p.id === id ? { ...p, parentId: newParentId ?? undefined, updatedAt: Date.now() } : p
       ),
     }));
   },

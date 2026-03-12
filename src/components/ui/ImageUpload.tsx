@@ -15,12 +15,23 @@ export function ImageUpload({ value, onChange, label = 'Bild', className }: Imag
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      onChange(result);
+    const img = new window.Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1200;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+        else { width = Math.round(width * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      onChange(canvas.toDataURL('image/jpeg', 0.78));
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
