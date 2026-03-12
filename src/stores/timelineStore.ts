@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase, getUserId } from '../lib/supabase';
-import { uid, compareGolarionDates } from '../lib/utils';
+import { uid, compareGolarionDates, COLOR_PALETTE } from '../lib/utils';
 import type { TimelineEvent, GolarionDate, EventCategory } from '../types';
 
 interface TimelineState {
@@ -36,6 +36,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
       date: data.date,
       endDate: data.endDate,
       category: data.category || 'custom',
+      color: data.color || COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)],
       linkedEntityIds: data.linkedEntityIds || [],
       sessionNumber: data.sessionNumber,
       tags: data.tags || [],

@@ -111,9 +111,9 @@ function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
     if (!el) return;
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
+      wasDragRef.current = false;
       if ((e.target as HTMLElement).closest('[data-event]')) return;
       isPanning.current = true;
-      wasDragRef.current = false;
       panStartX.current = e.clientX;
       panStartOffset.current = offsetXRef.current;
       el.style.cursor = 'grabbing';
@@ -172,7 +172,7 @@ function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
   }
 
   const activeEvent = events.find(e => e.id === activeId) ?? null;
-  const activeCatColor = activeEvent ? (CAT_COLORS[activeEvent.category] ?? color) : color;
+  const activeCatColor = activeEvent ? (activeEvent.color ?? CAT_COLORS[activeEvent.category] ?? color) : color;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -236,7 +236,7 @@ function HorizontalTimeline({ events, color, onEdit, onDelete }: VTProps) {
           {events.map((event, i) => {
             const x = getX(dateToNum(event.date));
             const above = i % 2 === 0;
-            const catColor = CAT_COLORS[event.category] ?? '#6B7280';
+            const catColor = event.color ?? CAT_COLORS[event.category] ?? '#6B7280';
             const isActive = activeId === event.id;
             const cardLeft = Math.max(2, Math.min(x - VT_CARD_W / 2, totalW - VT_CARD_W - 2));
             return (
@@ -699,12 +699,77 @@ export function TimelinePage() {
             onAction={() => openModal({ type: 'createEvent' })}
           />
         ) : (
-          <HorizontalTimeline
-            events={displayed}
-            color={colorValue}
-            onEdit={e => openModal({ type: 'editEvent', payload: { eventId: e.id } })}
-            onDelete={e => setDeleteTarget(e)}
-          />
+          <>
+            <HorizontalTimeline
+              events={displayed}
+              color={colorValue}
+              onEdit={e => openModal({ type: 'editEvent', payload: { eventId: e.id } })}
+              onDelete={e => setDeleteTarget(e)}
+            />
+
+            {/* Events table */}
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Alle Ereignisse</h2>
+              <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-800/60 text-xs text-gray-500 uppercase tracking-wider">
+                      <th className="text-left px-4 py-2.5 font-medium">Datum</th>
+                      <th className="text-left px-4 py-2.5 font-medium">Titel</th>
+                      <th className="text-left px-4 py-2.5 font-medium hidden sm:table-cell">Kategorie</th>
+                      <th className="text-left px-4 py-2.5 font-medium hidden md:table-cell">Sitzung</th>
+                      <th className="px-4 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {displayed.map(e => {
+                      const evColor = e.color ?? CAT_COLORS[e.category] ?? '#6B7280';
+                      return (
+                        <tr key={e.id} className="hover:bg-gray-800/40 transition-colors group">
+                          <td className="px-4 py-2.5 text-gray-500 font-mono text-xs whitespace-nowrap">
+                            {formatGolarionDate(e.date)}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: evColor }} />
+                              <span className="text-gray-200 font-medium">{e.title}</span>
+                              {e.isSecret && <span className="text-xs text-gray-600">🔒</span>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 hidden sm:table-cell">
+                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: evColor + '22', color: evColor }}>
+                              {CAT_LABELS[e.category] ?? e.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-600 hidden md:table-cell">
+                            {e.sessionNumber != null ? `Sitzung ${e.sessionNumber}` : '—'}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                              <button
+                                type="button"
+                                onClick={() => openModal({ type: 'editEvent', payload: { eventId: e.id } })}
+                                className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-500 hover:text-gray-300 transition-colors"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteTarget(e)}
+                                className="p-1.5 rounded-lg hover:bg-red-500/10 text-gray-500 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

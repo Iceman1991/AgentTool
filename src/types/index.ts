@@ -99,6 +99,7 @@ export interface TimelineEvent {
   date: GolarionDate;
   endDate?: GolarionDate;
   category: EventCategory;
+  color?: string;
   linkedEntityIds: string[];
   sessionNumber?: number;
   tags: string[];
