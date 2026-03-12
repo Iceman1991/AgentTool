@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
-import { Edit2, Trash2, Plus, FolderOpen, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Edit2, Trash2, Plus, Download, CheckCircle, AlertCircle, Archive } from 'lucide-react';
+import JSZip from 'jszip';
 import { Tabs } from '../components/ui/Tabs';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -18,16 +19,16 @@ import { useNotePageStore } from '../stores/notePageStore';
 import type { EntityType, RelationshipType } from '../types';
 import { uid, getNextColor } from '../lib/utils';
 
-/* ── helpers for base64 → File conversion ── */
-function base64ToBlob(dataUrl: string): Blob | null {
+/* ── helpers ── */
+function base64ToUint8(dataUrl: string): { data: Uint8Array; mime: string } | null {
   try {
-    const [header, data] = dataUrl.split(',');
-    if (!header || !data) return null;
+    const [header, b64] = dataUrl.split(',');
+    if (!header || !b64) return null;
     const mime = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
-    const bytes = atob(data);
-    const arr = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    return new Blob([arr], { type: mime });
+    const raw = atob(b64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return { data: arr, mime };
   } catch {
     return null;
   }
@@ -45,117 +46,106 @@ function FoundryExportTab() {
   const events = useTimelineStore(s => s.events);
   const notePages = useNotePageStore(s => s.notePages);
 
-  const dirHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
-  const [dirName, setDirName] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [log, setLog] = useState<{ type: 'ok' | 'err' | 'info'; msg: string }[]>([]);
-
-  const pickDirectory = useCallback(async () => {
-    try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      dirHandleRef.current = handle;
-      setDirName(handle.name);
-      setLog([]);
-    } catch {
-      // user cancelled
-    }
-  }, []);
 
   const addLog = (type: 'ok' | 'err' | 'info', msg: string) =>
     setLog(prev => [...prev, { type, msg }]);
 
-  const exportAll = useCallback(async () => {
-    const root = dirHandleRef.current;
-    if (!root) return;
+  const exportAsZip = useCallback(async () => {
     setExporting(true);
     setLog([]);
+    const zip = new JSZip();
 
     try {
-      // ── Export entities grouped by type ──
+      // ── Entities grouped by type ──
       for (const et of entityTypes) {
         const typeEntities = entities.filter(e => e.typeId === et.id && !e.deletedAt);
         if (typeEntities.length === 0) continue;
 
         const folderName = sanitizeFilename(et.name);
-        const typeDir = await root.getDirectoryHandle(folderName, { create: true });
-        addLog('info', `📁 ${folderName}/ (${typeEntities.length} Einträge)`);
+        const folder = zip.folder(folderName)!;
+        addLog('info', `${folderName}/ (${typeEntities.length} Einträge)`);
 
-        // Write images
         let imgCount = 0;
         for (const entity of typeEntities) {
           if (entity.imageUrl && entity.imageUrl.startsWith('data:')) {
-            const blob = base64ToBlob(entity.imageUrl);
-            if (blob) {
-              const ext = blob.type.includes('png') ? 'png' : 'jpg';
-              const filename = `${sanitizeFilename(entity.name)}.${ext}`;
-              const fileHandle = await typeDir.getFileHandle(filename, { create: true });
-              const writable = await fileHandle.createWritable();
-              await writable.write(blob);
-              await writable.close();
+            const result = base64ToUint8(entity.imageUrl);
+            if (result) {
+              const ext = result.mime.includes('png') ? 'png' : 'jpg';
+              folder.file(`${sanitizeFilename(entity.name)}.${ext}`, result.data);
               imgCount++;
             }
           }
         }
-        if (imgCount > 0) addLog('ok', `  ${imgCount} Bilder exportiert`);
+        if (imgCount > 0) addLog('ok', `  ${imgCount} Bilder hinzugefügt`);
 
-        // Write JSON manifest for this type
+        // JSON manifest
         const manifest = typeEntities.map(e => ({
           name: e.name,
           summary: e.summary || '',
           tags: e.tags,
           properties: e.properties,
-          image: e.imageUrl ? `${sanitizeFilename(e.name)}.${e.imageUrl.includes('png') ? 'png' : 'jpg'}` : null,
+          image: e.imageUrl
+            ? `${sanitizeFilename(e.name)}.${e.imageUrl.includes('png') ? 'png' : 'jpg'}`
+            : null,
         }));
-        const jsonHandle = await typeDir.getFileHandle('_manifest.json', { create: true });
-        const jsonWritable = await jsonHandle.createWritable();
-        await jsonWritable.write(JSON.stringify(manifest, null, 2));
-        await jsonWritable.close();
-        addLog('ok', `  _manifest.json geschrieben`);
+        folder.file('_manifest.json', JSON.stringify(manifest, null, 2));
+        addLog('ok', `  _manifest.json hinzugefügt`);
       }
 
-      // ── Export timelines ──
+      // ── Timelines ──
       if (timelines.length > 0) {
-        const tlDir = await root.getDirectoryHandle('Zeitleisten', { create: true });
-        addLog('info', `📁 Zeitleisten/ (${timelines.length} Zeitleisten)`);
+        const tlFolder = zip.folder('Zeitleisten')!;
+        addLog('info', `Zeitleisten/ (${timelines.length} Zeitleisten)`);
         for (const tl of timelines) {
           const tlEvents = events.filter(e => e.timelineId === tl.id);
-          const data = {
-            name: tl.name,
-            description: tl.description || '',
-            events: tlEvents.map(e => ({
-              title: e.title,
-              description: e.description,
-              date: e.date,
-              endDate: e.endDate,
-              category: e.category,
-              color: e.color,
-              session: e.session,
-            })),
-          };
-          const filename = `${sanitizeFilename(tl.name)}.json`;
-          const fh = await tlDir.getFileHandle(filename, { create: true });
-          const w = await fh.createWritable();
-          await w.write(JSON.stringify(data, null, 2));
-          await w.close();
+          tlFolder.file(
+            `${sanitizeFilename(tl.name)}.json`,
+            JSON.stringify({
+              name: tl.name,
+              description: tl.description || '',
+              events: tlEvents.map(e => ({
+                title: e.title,
+                description: e.description,
+                date: e.date,
+                endDate: e.endDate,
+                category: e.category,
+                color: e.color,
+                session: e.session,
+              })),
+            }, null, 2),
+          );
         }
-        addLog('ok', `  ${timelines.length} Zeitleisten exportiert`);
+        addLog('ok', `  ${timelines.length} Zeitleisten hinzugefügt`);
       }
 
-      // ── Export note pages ──
+      // ── Note pages ──
       if (notePages.length > 0) {
-        const npDir = await root.getDirectoryHandle('Notizen', { create: true });
-        addLog('info', `📁 Notizen/ (${notePages.length} Seiten)`);
+        const npFolder = zip.folder('Notizen')!;
+        addLog('info', `Notizen/ (${notePages.length} Seiten)`);
         for (const np of notePages) {
-          const filename = `${sanitizeFilename(np.title || 'Unbenannt')}.html`;
-          const fh = await npDir.getFileHandle(filename, { create: true });
-          const w = await fh.createWritable();
-          await w.write(np.content || '');
-          await w.close();
+          npFolder.file(
+            `${sanitizeFilename(np.title || 'Unbenannt')}.html`,
+            np.content || '',
+          );
         }
-        addLog('ok', `  ${notePages.length} Notizen exportiert`);
+        addLog('ok', `  ${notePages.length} Notizen hinzugefügt`);
       }
 
-      addLog('ok', '✅ Export abgeschlossen!');
+      // ── Generate & download ZIP ──
+      addLog('info', 'ZIP wird erstellt...');
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'campaign-export.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      addLog('ok', `Download gestartet (${(blob.size / 1024 / 1024).toFixed(1)} MB)`);
     } catch (err) {
       addLog('err', `Fehler: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -171,8 +161,8 @@ function FoundryExportTab() {
       <div>
         <h2 className="text-lg font-semibold text-gray-200 mb-1">Foundry VTT Export</h2>
         <p className="text-sm text-gray-400">
-          Exportiere alle Entitäten, Bilder, Zeitleisten und Notizen in einen lokalen Ordner.
-          Die Ordnerstruktur kann direkt in Foundry VTT verwendet werden.
+          Exportiere alle Entitäten, Bilder, Zeitleisten und Notizen als ZIP-Datei.
+          Entpacke die ZIP in dein Foundry <code className="text-gray-300">Data/</code> Verzeichnis.
         </p>
       </div>
 
@@ -191,52 +181,38 @@ function FoundryExportTab() {
         ))}
       </div>
 
-      {/* Directory picker */}
-      <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="secondary" onClick={pickDirectory}>
-            <FolderOpen size={14} /> Verzeichnis auswählen
-          </Button>
-          {dirName && (
-            <span className="text-sm text-gray-300">
-              📂 <span className="font-mono text-accent-400">{dirName}/</span>
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-gray-500">
-          Es werden Unterordner pro Entitäts-Typ erstellt (z.B. <code className="text-gray-400">NPCs/</code>, <code className="text-gray-400">Orte/</code>).
-          Bilder werden als separate Dateien gespeichert, dazu eine <code className="text-gray-400">_manifest.json</code> pro Typ.
-        </p>
+      {/* Folder structure preview */}
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-gray-300 mb-2">Inhalt der ZIP-Datei</h3>
+        <pre className="text-xs text-gray-500 font-mono leading-relaxed">
+{`campaign-export.zip
+${entityTypes
+  .filter(et => entities.some(e => e.typeId === et.id && !e.deletedAt))
+  .map(et => {
+    const count = entities.filter(e => e.typeId === et.id && !e.deletedAt).length;
+    const imgs = entities.filter(e => e.typeId === et.id && !e.deletedAt && e.imageUrl?.startsWith('data:')).length;
+    return `├── ${sanitizeFilename(et.name)}/ (${count} Einträge, ${imgs} Bilder, _manifest.json)`;
+  }).join('\n')}
+${timelines.length > 0 ? `├── Zeitleisten/ (${timelines.length} JSON-Dateien)` : ''}
+${notePages.length > 0 ? `└── Notizen/ (${notePages.length} HTML-Dateien)` : ''}`.trim()}
+        </pre>
       </div>
 
       {/* Export button */}
       <Button
         variant="primary"
-        onClick={exportAll}
-        disabled={!dirName || exporting}
+        onClick={exportAsZip}
+        disabled={exporting || (totalEntities === 0 && timelines.length === 0 && notePages.length === 0)}
         loading={exporting}
         className="w-full sm:w-auto"
       >
-        <Download size={14} /> {exporting ? 'Exportiere...' : 'Alles exportieren'}
+        <Archive size={14} /> {exporting ? 'Erstelle ZIP...' : 'Als ZIP herunterladen'}
       </Button>
 
-      {/* Folder structure preview */}
-      {dirName && (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-300 mb-2">Vorschau der Ordnerstruktur</h3>
-          <pre className="text-xs text-gray-500 font-mono leading-relaxed">
-{`${dirName}/
-${entityTypes
-  .filter(et => entities.some(e => e.typeId === et.id && !e.deletedAt))
-  .map(et => {
-    const count = entities.filter(e => e.typeId === et.id && !e.deletedAt).length;
-    return `├── ${sanitizeFilename(et.name)}/ (${count} Einträge + _manifest.json)`;
-  }).join('\n')}
-${timelines.length > 0 ? '├── Zeitleisten/ (JSON pro Zeitleiste)' : ''}
-${notePages.length > 0 ? '├── Notizen/ (HTML pro Seite)' : ''}`.trim()}
-          </pre>
-        </div>
-      )}
+      <p className="text-xs text-gray-500">
+        Entpacke die ZIP anschließend z.B. nach <code className="text-gray-400">FoundryVTT/Data/worlds/deine-welt/assets/</code>.
+        Die Bilder können dann als Token-Art oder Journal-Bilder verwendet werden.
+      </p>
 
       {/* Export log */}
       {log.length > 0 && (
