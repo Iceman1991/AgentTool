@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Variables ──────────────────────────────────────────── */
+:root {
+  --accent: #C49A4A;
+  --accent-hover: #D4AA5A;
+  --accent-text: #E8C77A;
+}
+
+html.light {
+  --accent: #8B5E2A;
+  --accent-hover: #7A4F1C;
+  --accent-text: #6B4A18;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: #09090b;
+    color: #EDE8DC;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Light mode body */
+  html.light body {
+    background-color: #F5F0E6;
+    color: #1A1410;
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+  html.light ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
+  html.light ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.28); }
+
+  .font-display {
+    font-family: 'Cinzel', Georgia, serif;
+  }
+}
+
+@layer components {
+  /* ── Dark surface layers (default) ── */
+  .surface-0  { background-color: #09090b; }
+  .surface-1  { background-color: #0e0e12; }
+  .surface-2  { background-color: #141419; }
+  .surface-3  { background-color: #1c1c23; }
+  .surface-hover { background-color: #222228; }
+
+  .border-subtle  { border-color: rgba(255,255,255,0.07); }
+  .border-default { border-color: rgba(255,255,255,0.1); }
+  .border-strong  { border-color: rgba(255,255,255,0.18); }
+
+  /* Text levels – dark */
+  .text-primary   { color: #EDE8DC; }
+  .text-secondary { color: #8A8070; }
+  .text-muted     { color: #4A4438; }
+
+  /* ── Light mode surface overrides ── */
+  html.light .surface-0  { background-color: #F5F0E6; }
+  html.light .surface-1  { background-color: #EDE6D8; }
+  html.light .surface-2  { background-color: #FFFFFF; }
+  html.light .surface-3  { background-color: #F8F5EF; }
+
+  html.light .border-subtle  { border-color: rgba(0,0,0,0.07); }
+  html.light .border-default { border-color: rgba(0,0,0,0.1); }
+  html.light .border-strong  { border-color: rgba(0,0,0,0.18); }
+
+  html.light .text-primary   { color: #1A1410; }
+  html.light .text-secondary { color: #6B5D4A; }
+  html.light .text-muted     { color: #B0A090; }
+
+  /* ── Tailwind gray class overrides for light mode ── */
+  html.light .bg-gray-950,
+  html.light .bg-gray-900 { background-color: #EDE6D8 !important; }
+
+  html.light .bg-gray-800 { background-color: #FFFFFF !important; }
+  html.light .bg-gray-750 { background-color: #F4EFE4 !important; }
+  html.light .bg-gray-700 { background-color: #F0EBE0 !important; }
+  html.light .bg-gray-600 { background-color: #E8E0D0 !important; }
+
+  html.light .text-gray-100,
+  html.light .text-gray-200 { color: #1A1410 !important; }
+
+  html.light .text-gray-300,
+  html.light .text-gray-400 { color: #5A4E3A !important; }
+
+  html.light .text-gray-500,
+  html.light .text-gray-600 { color: #9A8A72 !important; }
+
+  html.light .border-gray-700,
+  html.light .border-gray-800 { border-color: rgba(0,0,0,0.1) !important; }
+
+  html.light .border-gray-600 { border-color: rgba(0,0,0,0.15) !important; }
+
+  /* Prose styles for rich text */
+  .prose.prose-invert {
+    --tw-prose-body: #c4c0b4;
+    --tw-prose-headings: #EDE8DC;
+    --tw-prose-links: #E8C77A;
+    --tw-prose-bold: #EDE8DC;
+    --tw-prose-counters: #8A8070;
+    --tw-prose-bullets: #4A4438;
+    --tw-prose-hr: rgba(255,255,255,0.1);
+    --tw-prose-quotes: #c4c0b4;
+    --tw-prose-quote-borders: #C49A4A;
+    --tw-prose-captions: #8A8070;
+    --tw-prose-code: #E8C77A;
+    --tw-prose-pre-bg: #0e0e12;
+    --tw-prose-th-borders: rgba(255,255,255,0.15);
+    --tw-prose-td-borders: rgba(255,255,255,0.08);
+  }
+
+  /* Light mode prose */
+  html.light .prose {
+    --tw-prose-body: #3A2E1E;
+    --tw-prose-headings: #1A1410;
+    --tw-prose-links: #8B5E2A;
+    --tw-prose-bold: #1A1410;
+    --tw-prose-counters: #6B5D4A;
+    --tw-prose-bullets: #9A8A72;
+    --tw-prose-hr: rgba(0,0,0,0.1);
+    --tw-prose-quotes: #3A2E1E;
+    --tw-prose-quote-borders: #8B5E2A;
+    --tw-prose-captions: #6B5D4A;
+    --tw-prose-code: #7A4F1C;
+    --tw-prose-pre-bg: #EDE6D8;
+    --tw-prose-th-borders: rgba(0,0,0,0.15);
+    --tw-prose-td-borders: rgba(0,0,0,0.08);
+  }
+}
+
+/* ── ReactFlow overrides ──────────────────────────────────── */
+.react-flow__background { background-color: #09090b !important; }
+.react-flow__controls button {
+  background: #141419 !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #8A8070 !important;
+}
+.react-flow__controls button:hover { background: #1c1c23 !important; }
+.react-flow__minimap { background: #141419 !important; border-radius: 10px; overflow: hidden; }
+
+html.light .react-flow__background { background-color: #F5F0E6 !important; }
+html.light .react-flow__controls button {
+  background: #FFFFFF !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  color: #6B5D4A !important;
+}
+html.light .react-flow__controls button:hover { background: #F0EBE0 !important; }
+html.light .react-flow__minimap { background: #EDE6D8 !important; }
+
+/* ── Tiptap editor ─────────────────────────────────────────── */
+.ProseMirror { outline: none; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #4A4438;
+  pointer-events: none;
+  height: 0;
+}
+
+html.light .ProseMirror p.is-editor-empty:first-child::before {
+  color: #B0A090;
+}
+
+/* Mention chip styles */
+.entity-mention {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(196,154,74,0.15);
+  color: #EBB84F;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.875em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 120ms ease;
+}
+.entity-mention:hover {
+  background-color: rgba(196,154,74,0.25);
+}
+
+html.light .entity-mention {
+  background-color: rgba(139,94,42,0.12);
+  color: #7A4F1C;
+}
+html.light .entity-mention:hover {
+  background-color: rgba(139,94,42,0.22);
+}
+
+/* Tippy dropdown for mentions */
+.tippy-box[data-theme~='mention'] {
+  background: #141419;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  padding: 4px;
+}
+.tippy-box[data-theme~='mention'] .tippy-content {
+  padding: 0;
+}
+.mention-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 200px;
+  max-width: 320px;
+}
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  color: #EDE8DC;
+}
+.mention-item:hover, .mention-item.is-selected {
+  background: rgba(196,154,74,0.15);
+}
+.mention-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mention-name {
+  flex: 1;
+  font-weight: 500;
+}
+.mention-type {
+  font-size: 11px;
+  color: #8A8070;
+}
+
+html.light .tippy-box[data-theme~='mention'] {
+  background: #FFFFFF;
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+html.light .mention-item {
+  color: #1A1410;
+}
+html.light .mention-item:hover, html.light .mention-item.is-selected {
+  background: rgba(139,94,42,0.08);
+}
+
+/* ── Smooth transitions ────────────────────────────────────── */
+a, button, [role="button"] {
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
+}

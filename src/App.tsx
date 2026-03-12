@@ -1,0 +1,105 @@
+import { useEffect, useState } from 'react';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router';
+import { seedDatabase } from './seed';
+import { useEntityTypeStore } from './stores/entityTypeStore';
+import { useEntityStore } from './stores/entityStore';
+import { useRelationshipStore } from './stores/relationshipStore';
+import { useTimelineStore } from './stores/timelineStore';
+import { useNotePageStore } from './stores/notePageStore';
+import { useFamilyTreeStore } from './stores/familyTreeStore';
+import { useTimelineMetaStore } from './stores/timelineMetaStore';
+import { useEntityFolderStore } from './stores/entityFolderStore';
+import { useWorkspaceStore } from './stores/workspaceStore';
+import { useUIStore } from './stores/uiStore';
+
+function LoadingScreen() {
+  return (
+    <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center gap-4">
+      <div className="relative">
+        <div className="w-16 h-16 rounded-full border-4 border-gray-700 border-t-accent-500 animate-spin" />
+      </div>
+      <div className="text-center">
+        <h1 className="font-display text-2xl font-bold text-accent-400 mb-1">PF2 Kampagnen-Notizen</h1>
+        <p className="text-gray-400 text-sm">Daten werden geladen...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadEntityTypes = useEntityTypeStore(s => s.load);
+  const loadEntities = useEntityStore(s => s.load);
+  const loadRelationships = useRelationshipStore(s => s.load);
+  const loadTimeline = useTimelineStore(s => s.load);
+  const loadNotePages = useNotePageStore(s => s.load);
+  const loadFamilyTrees = useFamilyTreeStore(s => s.load);
+  const loadTimelineMeta = useTimelineMetaStore(s => s.load);
+  const loadEntityFolders = useEntityFolderStore(s => s.load);
+  const loadWorkspaces = useWorkspaceStore(s => s.load);
+  const { theme } = useUIStore();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    } else {
+      // system
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', prefersDark);
+      root.classList.toggle('light', !prefersDark);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    async function init() {
+      try {
+        await seedDatabase();
+        // Workspaces must load first so other stores can filter by currentWorkspaceId
+        await loadWorkspaces();
+        await Promise.all([
+          loadEntityTypes(),
+          loadEntities(),
+          loadRelationships(),
+          loadTimeline(),
+          loadNotePages(),
+          loadFamilyTrees(),
+          loadTimelineMeta(),
+          loadEntityFolders(),
+        ]);
+        setReady(true);
+      } catch (err) {
+        console.error('Failed to initialize:', err);
+        setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
+      }
+    }
+    init();
+  }, [loadEntityTypes, loadEntities, loadRelationships, loadTimeline, loadNotePages, loadFamilyTrees, loadTimelineMeta, loadEntityFolders, loadWorkspaces]);
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-gray-900 flex flex-col items-center justify-center gap-4 p-8">
+        <div className="text-red-500 text-5xl">!</div>
+        <h1 className="font-display text-2xl font-bold text-gray-100">Initialisierungsfehler</h1>
+        <p className="text-gray-400 text-center max-w-md">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-accent-500 text-white rounded-lg hover:bg-accent-600 transition-colors"
+        >
+          Neu laden
+        </button>
+      </div>
+    );
+  }
+
+  if (!ready) return <LoadingScreen />;
+
+  return <RouterProvider router={router} />;
+}
