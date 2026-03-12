@@ -52,7 +52,7 @@ export function TimelineEventForm({ event, onSave, onCancel }: TimelineEventForm
   const entities = useEntityStore(s => s.entities);
   const entityTypes = useEntityTypeStore(s => s.entityTypes);
 
-  const defaultDate: GolarionDate = { day: 1, month: 'Abadius', year: 4723 };
+  const defaultDate: GolarionDate = { day: 1, month: 'Abadius', year: 4500 };
 
   const [title, setTitle] = useState(event?.title || '');
   const [description, setDescription] = useState(event?.description || '');

@@ -44,7 +44,8 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    await supabase.from('timeline_events').insert({ ...newEvent, user_id: userId });
+    const { error } = await supabase.from('timeline_events').insert({ ...newEvent, user_id: userId });
+    if (error) throw new Error(error.message);
     set(state => ({ events: [...state.events, newEvent] }));
     return newEvent;
   },
