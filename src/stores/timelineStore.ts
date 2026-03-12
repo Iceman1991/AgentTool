@@ -31,6 +31,7 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     const userId = getUserId();
     const newEvent: TimelineEvent = {
       id: uid(),
+      timelineId: data.timelineId,
       title: data.title,
       description: data.description,
       date: data.date,

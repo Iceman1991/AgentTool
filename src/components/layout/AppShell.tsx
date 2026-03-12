@@ -101,12 +101,14 @@ function ModalRenderer() {
       );
     }
 
-    case 'createEvent':
+    case 'createEvent': {
+      const timelineId = modal.payload?.timelineId as string | undefined;
       return (
         <Modal isOpen onClose={closeModal} title="Ereignis hinzufügen" size="lg">
-          <TimelineEventForm onSave={closeModal} onCancel={closeModal} />
+          <TimelineEventForm timelineId={timelineId} onSave={closeModal} onCancel={closeModal} />
         </Modal>
       );
+    }
 
     case 'editEvent': {
       const eventId = modal.payload?.eventId as string | undefined;

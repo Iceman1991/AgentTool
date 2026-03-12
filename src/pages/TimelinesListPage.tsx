@@ -27,8 +27,8 @@ export function TimelinesListPage() {
 
   const getEventCount = (timeline: (typeof timelines)[number]) => {
     const { filterEntityIds, filterTags } = timeline;
-    if (filterEntityIds.length === 0 && filterTags.length === 0) return allEvents.length;
     return allEvents.filter(e => {
+      if (e.timelineId !== timeline.id) return false;
       const entityMatch = filterEntityIds.length === 0
         || e.linkedEntityIds.some(id => filterEntityIds.includes(id));
       const tagMatch = filterTags.length === 0

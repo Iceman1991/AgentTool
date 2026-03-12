@@ -43,11 +43,12 @@ const YEARS = Array.from({ length: 200 }, (_, i) => {
 
 interface TimelineEventFormProps {
   event?: TimelineEvent;
+  timelineId?: string;
   onSave: () => void;
   onCancel: () => void;
 }
 
-export function TimelineEventForm({ event, onSave, onCancel }: TimelineEventFormProps) {
+export function TimelineEventForm({ event, timelineId, onSave, onCancel }: TimelineEventFormProps) {
   const { createEvent, updateEvent } = useTimelineStore();
   const entities = useEntityStore(s => s.entities);
   const entityTypes = useEntityTypeStore(s => s.entityTypes);
@@ -86,6 +87,7 @@ export function TimelineEventForm({ event, onSave, onCancel }: TimelineEventForm
         sessionNumber: sessionNumber ? parseInt(sessionNumber) : undefined,
         tags,
         isSecret,
+        ...(event ? {} : { timelineId }),
       };
       if (event) {
         await updateEvent(event.id, data);

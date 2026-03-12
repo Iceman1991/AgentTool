@@ -494,8 +494,9 @@ export function TimelinePage() {
 
   const sorted = getSortedEvents();
 
-  // Apply timeline filters
+  // Only events belonging to this timeline, plus optional entity/tag filters
   const timelineFiltered = sorted.filter(e => {
+    if (e.timelineId !== timeline.id) return false;
     const entityMatch = timeline.filterEntityIds.length === 0
       || e.linkedEntityIds.some(eid => timeline.filterEntityIds.includes(eid));
     const tagMatch = timeline.filterTags.length === 0
@@ -654,7 +655,7 @@ export function TimelinePage() {
           </h1>
           <Button
             variant="primary"
-            onClick={() => openModal({ type: 'createEvent' })}
+            onClick={() => openModal({ type: 'createEvent', payload: { timelineId: timeline.id } })}
           >
             <Plus size={16} /> Ereignis hinzufügen
           </Button>
@@ -696,7 +697,7 @@ export function TimelinePage() {
             title="Keine Ereignisse vorhanden"
             description="Füge dein erstes Kampagnen-Ereignis hinzu."
             actionLabel="Ereignis hinzufügen"
-            onAction={() => openModal({ type: 'createEvent' })}
+            onAction={() => openModal({ type: 'createEvent', payload: { timelineId: timeline.id } })}
           />
         ) : (
           <>

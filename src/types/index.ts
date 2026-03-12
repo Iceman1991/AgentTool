@@ -94,6 +94,7 @@ export type EventCategory = 'combat' | 'social' | 'exploration' | 'downtime' | '
 
 export interface TimelineEvent {
   id: string;
+  timelineId?: string;
   title: string;
   description?: string;
   date: GolarionDate;
