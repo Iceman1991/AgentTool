@@ -228,7 +228,7 @@ const SortableEntityCard = memo(function SortableEntityCard({ entity, entityType
       </div>
 
       {/* Context menu button */}
-      <div className="absolute bottom-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+      <div className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
         <div className="relative">
           <button
             className="flex items-center gap-1 px-2 py-1 rounded bg-gray-900/90 border border-gray-700 text-xs text-gray-300 hover:text-gray-100 hover:border-gray-500"

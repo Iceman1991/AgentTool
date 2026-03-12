@@ -177,12 +177,12 @@ export function ImagePositionEditor({
           </div>
         </div>
       ) : (
-        /* Normal mode: show reposition button on hover */
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100">
+        /* Normal mode: show reposition button centered on hover */
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
           <button
             type="button"
             onClick={startEdit}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white bg-black/60 hover:bg-black/80 border border-white/10 backdrop-blur-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs text-white bg-black/60 hover:bg-black/80 border border-white/20 backdrop-blur-sm pointer-events-auto"
           >
             <Move size={12} /> {editButtonLabel}
           </button>
