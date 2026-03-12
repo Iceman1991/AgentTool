@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { EntityCard } from './EntityCard';
 import { EmptyState } from '../ui/EmptyState';
 import { Users } from 'lucide-react';
@@ -9,8 +10,8 @@ interface EntityGridProps {
   onCreateEntity?: () => void;
 }
 
-export function EntityGrid({ entities, entityTypes, onCreateEntity }: EntityGridProps) {
-  const typeMap = new Map(entityTypes.map(et => [et.id, et]));
+export const EntityGrid = memo(function EntityGrid({ entities, entityTypes, onCreateEntity }: EntityGridProps) {
+  const typeMap = useMemo(() => new Map(entityTypes.map(et => [et.id, et])), [entityTypes]);
 
   if (entities.length === 0) {
     return (
@@ -33,4 +34,4 @@ export function EntityGrid({ entities, entityTypes, onCreateEntity }: EntityGrid
       })}
     </div>
   );
-}
+});

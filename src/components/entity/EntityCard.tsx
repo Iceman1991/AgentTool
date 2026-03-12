@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tag } from 'lucide-react';
 import { Card } from '../ui/Card';
@@ -12,15 +13,18 @@ interface EntityCardProps {
   entityType: EntityType;
 }
 
-export function EntityCard({ entity, entityType }: EntityCardProps) {
+export const EntityCard = memo(function EntityCard({ entity, entityType }: EntityCardProps) {
   const navigate = useNavigate();
   const updateEntity = useEntityStore(s => s.updateEntity);
 
-  const summaryText = entity.summary ? stripHtml(entity.summary).slice(0, 100) : null;
+  const summaryText = useMemo(
+    () => entity.summary ? stripHtml(entity.summary).slice(0, 100) : null,
+    [entity.summary]
+  );
 
-  const handleSavePosition = (pos: ImagePosition) => {
+  const handleSavePosition = useCallback((pos: ImagePosition) => {
     updateEntity(entity.id, { imagePosition: pos });
-  };
+  }, [entity.id, updateEntity]);
 
   return (
     <Card
@@ -77,4 +81,4 @@ export function EntityCard({ entity, entityType }: EntityCardProps) {
       </div>
     </Card>
   );
-}
+});

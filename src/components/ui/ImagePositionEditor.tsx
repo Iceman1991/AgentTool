@@ -123,6 +123,7 @@ export function ImagePositionEditor({
         src={src}
         alt={alt}
         draggable={false}
+        loading="lazy"
         onMouseDown={onMouseDown}
         className={cn(
           'w-full h-full object-cover select-none',

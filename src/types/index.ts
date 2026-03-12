@@ -39,6 +39,7 @@ export interface EntityFolder {
   name: string;
   color?: string;
   order: number;
+  workspaceId?: string;
   createdAt: number;
   updatedAt: number;
 }

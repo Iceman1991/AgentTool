@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, LayoutGrid, List, Network, FolderPlus, ChevronDown, ChevronRight, Pencil, Trash2, Check, X, Folder, GripVertical } from 'lucide-react';
 import {
@@ -190,14 +190,13 @@ interface SortableCardProps {
   entity: Entity;
   entityTypes: EntityType[];
   folders: EntityFolder[];
-  openMenuId: string | null;
-  setOpenMenuId: (id: string | null) => void;
   onMoveEntity: (entityId: string, folderId: string | null) => void;
   onDuplicate: (entityId: string) => void;
 }
 
-function SortableEntityCard({ entity, entityTypes, folders, openMenuId, setOpenMenuId, onMoveEntity, onDuplicate }: SortableCardProps) {
+const SortableEntityCard = memo(function SortableEntityCard({ entity, entityTypes, folders, onMoveEntity, onDuplicate }: SortableCardProps) {
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const et = entityTypes.find(t => t.id === entity.typeId);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entity.id });
 
@@ -232,12 +231,12 @@ function SortableEntityCard({ entity, entityTypes, folders, openMenuId, setOpenM
         <div className="relative">
           <button
             className="flex items-center gap-1 px-2 py-1 rounded bg-gray-900/90 border border-gray-700 text-xs text-gray-300 hover:text-gray-100 hover:border-gray-500"
-            onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === entity.id ? null : entity.id); }}
+            onClick={e => { e.stopPropagation(); setIsMenuOpen(v => !v); }}
             title="Optionen"
           >
             ···
           </button>
-          {openMenuId === entity.id && (
+          {isMenuOpen && (
             <div
               className="absolute right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl min-w-[160px] z-20"
               onClick={e => e.stopPropagation()}
@@ -245,7 +244,7 @@ function SortableEntityCard({ entity, entityTypes, folders, openMenuId, setOpenM
               <div className="py-1">
                 <button
                   className="w-full text-left px-3 py-2 text-xs hover:bg-gray-800 flex items-center gap-2 text-gray-300"
-                  onClick={() => { onDuplicate(entity.id); setOpenMenuId(null); }}
+                  onClick={() => { onDuplicate(entity.id); setIsMenuOpen(false); }}
                 >
                   <Copy size={11} /> Duplizieren
                 </button>
@@ -255,7 +254,7 @@ function SortableEntityCard({ entity, entityTypes, folders, openMenuId, setOpenM
                     <p className="px-3 py-1 text-[10px] text-gray-600 uppercase tracking-wider">Ordner</p>
                     <button
                       className={cn('w-full text-left px-3 py-2 text-xs hover:bg-gray-800 flex items-center gap-2', !entity.folderId ? 'text-accent-400' : 'text-gray-400')}
-                      onClick={() => { onMoveEntity(entity.id, null); setOpenMenuId(null); }}
+                      onClick={() => { onMoveEntity(entity.id, null); setIsMenuOpen(false); }}
                     >
                       <X size={11} /> Kein Ordner
                     </button>
@@ -263,7 +262,7 @@ function SortableEntityCard({ entity, entityTypes, folders, openMenuId, setOpenM
                       <button
                         key={f.id}
                         className={cn('w-full text-left px-3 py-2 text-xs hover:bg-gray-800 flex items-center gap-2', entity.folderId === f.id ? 'text-accent-400' : 'text-gray-300')}
-                        onClick={() => { onMoveEntity(entity.id, f.id); setOpenMenuId(null); }}
+                        onClick={() => { onMoveEntity(entity.id, f.id); setIsMenuOpen(false); }}
                       >
                         <Folder size={11} /> {f.name}
                       </button>
@@ -277,10 +276,9 @@ function SortableEntityCard({ entity, entityTypes, folders, openMenuId, setOpenM
       </div>
     </div>
   );
-}
+});
 
 function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, currentFolderId, onCreateEntity, onMoveEntity }: FolderMenuProps) {
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [localEntities, setLocalEntities] = useState<Entity[]>(entities);
   const reorderEntities = useEntityStore(s => s.reorderEntities);
   const duplicateEntity = useEntityStore(s => s.duplicateEntity);
@@ -290,7 +288,7 @@ function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, 
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setLocalEntities(prev => {
@@ -301,7 +299,12 @@ function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, 
         return reordered;
       });
     }
-  };
+  }, [reorderEntities]);
+
+  const handleDuplicate = useCallback(async (id: string) => {
+    const copy = await duplicateEntity(id);
+    navigate(`/entities/${copy.id}`);
+  }, [duplicateEntity, navigate]);
 
   if (localEntities.length === 0) {
     return <p className="text-sm text-gray-600 italic py-2">Keine Einträge.</p>;
@@ -317,13 +320,8 @@ function EntityGridWithFolderMenu({ entities, entityType, entityTypes, folders, 
               entity={entity}
               entityTypes={entityTypes}
               folders={folders}
-              openMenuId={openMenuId}
-              setOpenMenuId={setOpenMenuId}
               onMoveEntity={onMoveEntity}
-              onDuplicate={async (id) => {
-                const copy = await duplicateEntity(id);
-                navigate(`/entities/${copy.id}`);
-              }}
+              onDuplicate={handleDuplicate}
             />
           ))}
         </div>
@@ -353,13 +351,16 @@ import { useEntityStore as useEntityStoreLocal } from '../stores/entityStore';
 import { stripHtml } from '../lib/utils';
 import type { ImagePosition } from '../types';
 
-function EntityCardInner({ entity, entityType }: { entity: Entity; entityType: EntityType }) {
+const EntityCardInner = memo(function EntityCardInner({ entity, entityType }: { entity: Entity; entityType: EntityType }) {
   const updateEntity = useEntityStoreLocal(s => s.updateEntity);
-  const summaryText = entity.summary ? stripHtml(entity.summary).slice(0, 100) : null;
+  const summaryText = useMemo(
+    () => entity.summary ? stripHtml(entity.summary).slice(0, 100) : null,
+    [entity.summary]
+  );
 
-  const handleSavePosition = (pos: ImagePosition) => {
+  const handleSavePosition = useCallback((pos: ImagePosition) => {
     updateEntity(entity.id, { imagePosition: pos });
-  };
+  }, [entity.id, updateEntity]);
 
   return (
     <Card className="flex flex-col gap-0 p-0 overflow-hidden h-full" hoverable>
@@ -398,7 +399,7 @@ function EntityCardInner({ entity, entityType }: { entity: Entity; entityType: E
       </div>
     </Card>
   );
-}
+});
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
